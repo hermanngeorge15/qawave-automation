@@ -17,7 +17,7 @@ data class TestScenario(
     val source: ScenarioSource,
     val status: ScenarioStatus = ScenarioStatus.PENDING,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
 ) {
     init {
         require(name.isNotBlank()) { "Scenario name cannot be blank" }
@@ -63,7 +63,7 @@ enum class ScenarioSource {
     /**
      * Created from a template.
      */
-    TEMPLATE
+    TEMPLATE,
 }
 
 /**
@@ -93,5 +93,5 @@ enum class ScenarioStatus {
     /**
      * Scenario is disabled and won't be executed.
      */
-    DISABLED
+    DISABLED,
 }

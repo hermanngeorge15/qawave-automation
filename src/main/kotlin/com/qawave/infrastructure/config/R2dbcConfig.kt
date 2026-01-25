@@ -22,7 +22,6 @@ import org.springframework.transaction.annotation.EnableTransactionManagement
 @EnableR2dbcAuditing
 @EnableTransactionManagement
 class R2dbcConfig {
-
     /**
      * Configures the reactive transaction manager for R2DBC.
      * This enables @Transactional support for suspend functions.

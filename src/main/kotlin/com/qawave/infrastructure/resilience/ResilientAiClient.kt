@@ -37,19 +37,22 @@ class ResilientAiClient(
     rateLimiterRegistry: RateLimiterRegistry,
     retryRegistry: RetryRegistry,
     bulkheadRegistry: BulkheadRegistry,
-    private val fallbackHandler: AiFallbackHandler
+    private val fallbackHandler: AiFallbackHandler,
 ) : AiClient {
-
     private val logger = LoggerFactory.getLogger(ResilientAiClient::class.java)
 
-    private val circuitBreaker = circuitBreakerRegistry
-        .circuitBreaker(ResilienceConfig.AI_CLIENT_CIRCUIT_BREAKER)
-    private val rateLimiter = rateLimiterRegistry
-        .rateLimiter(ResilienceConfig.AI_CLIENT_RATE_LIMITER)
-    private val retry = retryRegistry
-        .retry(ResilienceConfig.AI_CLIENT_RETRY)
-    private val bulkhead = bulkheadRegistry
-        .bulkhead(ResilienceConfig.AI_CLIENT_BULKHEAD)
+    private val circuitBreaker =
+        circuitBreakerRegistry
+            .circuitBreaker(ResilienceConfig.AI_CLIENT_CIRCUIT_BREAKER)
+    private val rateLimiter =
+        rateLimiterRegistry
+            .rateLimiter(ResilienceConfig.AI_CLIENT_RATE_LIMITER)
+    private val retry =
+        retryRegistry
+            .retry(ResilienceConfig.AI_CLIENT_RETRY)
+    private val bulkhead =
+        bulkheadRegistry
+            .bulkhead(ResilienceConfig.AI_CLIENT_BULKHEAD)
 
     /**
      * Executes a completion request with all resilience patterns applied.
@@ -117,33 +120,39 @@ class ResilientAiClient(
                 when (e) {
                     is CallNotPermittedException -> {
                         logger.warn("Circuit breaker is open for stream: {}", e.message)
-                        emit(AiStreamChunk(
-                            content = fallbackHandler.getFallbackMessage(),
-                            isComplete = true,
-                            finishReason = FinishReason.ERROR
-                        ))
+                        emit(
+                            AiStreamChunk(
+                                content = fallbackHandler.getFallbackMessage(),
+                                isComplete = true,
+                                finishReason = FinishReason.ERROR,
+                            ),
+                        )
                     }
                     is RequestNotPermitted -> {
                         logger.warn("Rate limiter rejected stream: {}", e.message)
-                        emit(AiStreamChunk(
-                            content = "Service temporarily unavailable due to rate limiting",
-                            isComplete = true,
-                            finishReason = FinishReason.ERROR
-                        ))
+                        emit(
+                            AiStreamChunk(
+                                content = "Service temporarily unavailable due to rate limiting",
+                                isComplete = true,
+                                finishReason = FinishReason.ERROR,
+                            ),
+                        )
                     }
                     is BulkheadFullException -> {
                         logger.warn("Bulkhead full for stream: {}", e.message)
-                        emit(AiStreamChunk(
-                            content = "Service temporarily unavailable due to high load",
-                            isComplete = true,
-                            finishReason = FinishReason.ERROR
-                        ))
+                        emit(
+                            AiStreamChunk(
+                                content = "Service temporarily unavailable due to high load",
+                                isComplete = true,
+                                finishReason = FinishReason.ERROR,
+                            ),
+                        )
                     }
                     else -> {
                         circuitBreaker.onError(
                             System.nanoTime() - System.nanoTime(),
                             java.util.concurrent.TimeUnit.NANOSECONDS,
-                            e
+                            e,
                         )
                         throw e
                     }
@@ -182,7 +191,7 @@ class ResilientAiClient(
             circuitBreakerSlowCallRate = circuitBreaker.metrics.slowCallRate,
             rateLimiterAvailablePermissions = rateLimiter.metrics.availablePermissions,
             bulkheadAvailableConcurrentCalls = bulkhead.metrics.availableConcurrentCalls,
-            bulkheadMaxAllowedConcurrentCalls = bulkhead.metrics.maxAllowedConcurrentCalls
+            bulkheadMaxAllowedConcurrentCalls = bulkhead.metrics.maxAllowedConcurrentCalls,
         )
     }
 }
@@ -196,5 +205,5 @@ data class ResilienceMetrics(
     val circuitBreakerSlowCallRate: Float,
     val rateLimiterAvailablePermissions: Int,
     val bulkheadAvailableConcurrentCalls: Int,
-    val bulkheadMaxAllowedConcurrentCalls: Int
+    val bulkheadMaxAllowedConcurrentCalls: Int,
 )

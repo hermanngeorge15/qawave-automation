@@ -7,7 +7,6 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotEquals
 
 class IdentifiersTest {
-
     @Test
     fun `QaPackageId generates unique IDs`() {
         val id1 = QaPackageId.generate()

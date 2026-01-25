@@ -11,9 +11,8 @@ import org.springframework.stereotype.Component
  */
 @Component
 class QaPackageMapper(
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) {
-
     /**
      * Converts an entity to a domain model.
      */
@@ -35,7 +34,7 @@ class QaPackageMapper(
             startedAt = entity.startedAt,
             completedAt = entity.completedAt,
             createdAt = entity.createdAt,
-            updatedAt = entity.updatedAt
+            updatedAt = entity.updatedAt,
         )
     }
 
@@ -60,7 +59,7 @@ class QaPackageMapper(
             startedAt = domain.startedAt,
             completedAt = domain.completedAt,
             createdAt = domain.createdAt,
-            updatedAt = domain.updatedAt
+            updatedAt = domain.updatedAt,
         )
     }
 
@@ -85,7 +84,7 @@ class QaPackageMapper(
             startedAt = domain.startedAt,
             completedAt = domain.completedAt,
             createdAt = domain.createdAt,
-            updatedAt = domain.updatedAt
+            updatedAt = domain.updatedAt,
         )
     }
 

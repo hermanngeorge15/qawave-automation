@@ -2,6 +2,7 @@ package com.qawave.infrastructure.persistence.repository
 
 import com.qawave.infrastructure.persistence.entity.TestStepResultEntity
 import kotlinx.coroutines.flow.Flow
+import org.springframework.data.domain.Pageable
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import org.springframework.stereotype.Repository
@@ -13,7 +14,6 @@ import java.util.UUID
  */
 @Repository
 interface TestStepResultR2dbcRepository : CoroutineCrudRepository<TestStepResultEntity, UUID> {
-
     /**
      * Find all step results for a test run.
      */
@@ -33,12 +33,18 @@ interface TestStepResultR2dbcRepository : CoroutineCrudRepository<TestStepResult
     /**
      * Find a specific step result by run ID and step index.
      */
-    suspend fun findByRunIdAndStepIndex(runId: UUID, stepIndex: Int): TestStepResultEntity?
+    suspend fun findByRunIdAndStepIndex(
+        runId: UUID,
+        stepIndex: Int,
+    ): TestStepResultEntity?
 
     /**
      * Find passed step results for a run.
      */
-    suspend fun findByRunIdAndPassed(runId: UUID, passed: Boolean): List<TestStepResultEntity>
+    suspend fun findByRunIdAndPassed(
+        runId: UUID,
+        passed: Boolean,
+    ): List<TestStepResultEntity>
 
     /**
      * Count step results by run ID.
@@ -79,4 +85,20 @@ interface TestStepResultR2dbcRepository : CoroutineCrudRepository<TestStepResult
      */
     @Query("SELECT * FROM test_step_results WHERE run_id = :runId ORDER BY duration_ms DESC LIMIT 1")
     suspend fun findSlowestStepByRunId(runId: UUID): TestStepResultEntity?
+
+    /**
+     * Find all step results with pagination.
+     */
+    fun findAllBy(pageable: Pageable): Flow<TestStepResultEntity>
+
+    /**
+     * Find step results by run ID with pagination.
+     */
+    fun findByRunId(runId: UUID, pageable: Pageable): Flow<TestStepResultEntity>
+
+    /**
+     * Find step results by run ID ordered by step index with pagination.
+     */
+    @Query("SELECT * FROM test_step_results WHERE run_id = :runId ORDER BY step_index ASC LIMIT :limit OFFSET :offset")
+    fun findByRunIdOrderByStepIndex(runId: UUID, limit: Int, offset: Int): Flow<TestStepResultEntity>
 }

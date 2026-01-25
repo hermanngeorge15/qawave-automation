@@ -18,7 +18,7 @@ data class TestStepResult(
     val extractedValues: Map<String, String> = emptyMap(),
     val errorMessage: String? = null,
     val durationMs: Long,
-    val executedAt: Instant
+    val executedAt: Instant,
 ) {
     /**
      * Whether this step resulted in an error (not a failed assertion).
@@ -42,11 +42,12 @@ data class TestStepResult(
      * Summary of the step result.
      */
     val summary: String
-        get() = when {
-            hasError -> "Error: $errorMessage"
-            passed -> "Passed ($passedAssertions assertions)"
-            else -> "Failed ($failedAssertions of ${assertions.size} assertions failed)"
-        }
+        get() =
+            when {
+                hasError -> "Error: $errorMessage"
+                passed -> "Passed ($passedAssertions assertions)"
+                else -> "Failed ($failedAssertions of ${assertions.size} assertions failed)"
+            }
 
     companion object {
         /**
@@ -56,17 +57,18 @@ data class TestStepResult(
             runId: TestRunId,
             step: TestStep,
             durationMs: Long,
-            executedAt: Instant = Instant.now()
-        ): TestStepResult = TestStepResult(
-            runId = runId,
-            stepIndex = step.index,
-            stepName = step.name,
-            actualStatus = null,
-            passed = false,
-            errorMessage = "Request timed out after ${step.timeoutMs}ms",
-            durationMs = durationMs,
-            executedAt = executedAt
-        )
+            executedAt: Instant = Instant.now(),
+        ): TestStepResult =
+            TestStepResult(
+                runId = runId,
+                stepIndex = step.index,
+                stepName = step.name,
+                actualStatus = null,
+                passed = false,
+                errorMessage = "Request timed out after ${step.timeoutMs}ms",
+                durationMs = durationMs,
+                executedAt = executedAt,
+            )
 
         /**
          * Creates a result for a step that encountered an error.
@@ -76,17 +78,18 @@ data class TestStepResult(
             step: TestStep,
             error: Throwable,
             durationMs: Long,
-            executedAt: Instant = Instant.now()
-        ): TestStepResult = TestStepResult(
-            runId = runId,
-            stepIndex = step.index,
-            stepName = step.name,
-            actualStatus = null,
-            passed = false,
-            errorMessage = error.message ?: "Unknown error: ${error::class.simpleName}",
-            durationMs = durationMs,
-            executedAt = executedAt
-        )
+            executedAt: Instant = Instant.now(),
+        ): TestStepResult =
+            TestStepResult(
+                runId = runId,
+                stepIndex = step.index,
+                stepName = step.name,
+                actualStatus = null,
+                passed = false,
+                errorMessage = error.message ?: "Unknown error: ${error::class.simpleName}",
+                durationMs = durationMs,
+                executedAt = executedAt,
+            )
     }
 }
 
@@ -99,7 +102,7 @@ data class AssertionResult(
     val expected: String?,
     val actual: String?,
     val passed: Boolean,
-    val message: String?
+    val message: String?,
 )
 
 /**
@@ -117,5 +120,5 @@ enum class AssertionType {
     BODY_FIELD_GREATER_THAN,
     BODY_FIELD_LESS_THAN,
     BODY_FIELD_ONE_OF,
-    HEADER_VALUE
+    HEADER_VALUE,
 }

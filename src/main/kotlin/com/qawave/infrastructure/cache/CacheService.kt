@@ -19,9 +19,13 @@ object CacheKeys {
     const val AI_RESPONSE = "qawave:ai:"
 
     fun qaPackage(id: String) = "$QA_PACKAGE$id"
+
     fun scenario(id: String) = "$SCENARIO$id"
+
     fun testRun(id: String) = "$TEST_RUN$id"
+
     fun apiSpec(hash: String) = "$API_SPEC$hash"
+
     fun aiResponse(hash: String) = "$AI_RESPONSE$hash"
 }
 
@@ -44,7 +48,7 @@ object CacheTtl {
 class CacheService(
     private val redisTemplate: ReactiveRedisTemplate<String, Any>,
     private val stringRedisTemplate: ReactiveRedisTemplate<String, String>,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) {
     private val logger = LoggerFactory.getLogger(CacheService::class.java)
 
@@ -53,11 +57,15 @@ class CacheService(
      * @param key The cache key
      * @param type The class type to deserialize to
      */
-    suspend fun <T> get(key: String, type: Class<T>): T? {
+    suspend fun <T> get(
+        key: String,
+        type: Class<T>,
+    ): T? {
         return try {
-            val value = stringRedisTemplate.opsForValue()
-                .get(key)
-                .awaitFirstOrNull()
+            val value =
+                stringRedisTemplate.opsForValue()
+                    .get(key)
+                    .awaitFirstOrNull()
 
             value?.let { objectMapper.readValue(it, type) }
         } catch (e: Exception) {
@@ -69,7 +77,11 @@ class CacheService(
     /**
      * Sets a cached value with the specified TTL.
      */
-    suspend fun <T : Any> set(key: String, value: T, ttl: Duration): Boolean {
+    suspend fun <T : Any> set(
+        key: String,
+        value: T,
+        ttl: Duration,
+    ): Boolean {
         return try {
             val json = objectMapper.writeValueAsString(value)
             stringRedisTemplate.opsForValue()
@@ -92,7 +104,7 @@ class CacheService(
         key: String,
         type: Class<T>,
         ttl: Duration,
-        compute: suspend () -> T?
+        compute: suspend () -> T?,
     ): T? {
         val cached = get(key, type)
         if (cached != null) {
@@ -161,7 +173,10 @@ class CacheService(
     /**
      * Extends the TTL for a key.
      */
-    suspend fun expire(key: String, ttl: Duration): Boolean {
+    suspend fun expire(
+        key: String,
+        ttl: Duration,
+    ): Boolean {
         return try {
             stringRedisTemplate.expire(key, ttl).awaitSingle()
         } catch (e: Exception) {
@@ -173,7 +188,10 @@ class CacheService(
     /**
      * Increments a counter value.
      */
-    suspend fun increment(key: String, delta: Long = 1): Long? {
+    suspend fun increment(
+        key: String,
+        delta: Long = 1,
+    ): Long? {
         return try {
             redisTemplate.opsForValue()
                 .increment(key, delta)
@@ -189,10 +207,11 @@ class CacheService(
      */
     suspend fun ping(): Boolean {
         return try {
-            val result = stringRedisTemplate.connectionFactory
-                .reactiveConnection
-                .ping()
-                .awaitFirstOrNull()
+            val result =
+                stringRedisTemplate.connectionFactory
+                    .reactiveConnection
+                    .ping()
+                    .awaitFirstOrNull()
             result == "PONG"
         } catch (e: Exception) {
             logger.error("Redis health check failed: {}", e.message)

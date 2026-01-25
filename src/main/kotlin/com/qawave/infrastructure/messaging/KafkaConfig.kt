@@ -32,9 +32,8 @@ object KafkaTopics {
  */
 @Configuration
 class KafkaConfig(
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) {
-
     @Value("\${spring.kafka.bootstrap-servers:localhost:9092}")
     private lateinit var bootstrapServers: String
 
@@ -85,14 +84,15 @@ class KafkaConfig(
 
     @Bean
     fun producerFactory(): ProducerFactory<String, Any> {
-        val configProps = mapOf(
-            ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
-            ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java,
-            ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java,
-            ProducerConfig.ACKS_CONFIG to "all",
-            ProducerConfig.RETRIES_CONFIG to 3,
-            ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG to true
-        )
+        val configProps =
+            mapOf(
+                ProducerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
+                ProducerConfig.KEY_SERIALIZER_CLASS_CONFIG to StringSerializer::class.java,
+                ProducerConfig.VALUE_SERIALIZER_CLASS_CONFIG to JsonSerializer::class.java,
+                ProducerConfig.ACKS_CONFIG to "all",
+                ProducerConfig.RETRIES_CONFIG to 3,
+                ProducerConfig.ENABLE_IDEMPOTENCE_CONFIG to true,
+            )
         return DefaultKafkaProducerFactory(configProps)
     }
 
@@ -105,19 +105,20 @@ class KafkaConfig(
 
     @Bean
     fun consumerFactory(): ConsumerFactory<String, DomainEvent> {
-        val configProps = mapOf(
-            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
-            ConsumerConfig.GROUP_ID_CONFIG to groupId,
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to JsonDeserializer::class.java,
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest",
-            ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG to false,
-            JsonDeserializer.TRUSTED_PACKAGES to "com.qawave.*"
-        )
+        val configProps =
+            mapOf(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to bootstrapServers,
+                ConsumerConfig.GROUP_ID_CONFIG to groupId,
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java,
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to JsonDeserializer::class.java,
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest",
+                ConsumerConfig.ENABLE_AUTO_COMMIT_CONFIG to false,
+                JsonDeserializer.TRUSTED_PACKAGES to "com.qawave.*",
+            )
         return DefaultKafkaConsumerFactory(
             configProps,
             StringDeserializer(),
-            JsonDeserializer(DomainEvent::class.java, objectMapper)
+            JsonDeserializer(DomainEvent::class.java, objectMapper),
         )
     }
 

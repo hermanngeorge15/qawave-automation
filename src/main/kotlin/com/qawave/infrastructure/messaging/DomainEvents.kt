@@ -11,7 +11,7 @@ import java.util.UUID
 @JsonTypeInfo(
     use = JsonTypeInfo.Id.NAME,
     include = JsonTypeInfo.As.PROPERTY,
-    property = "type"
+    property = "type",
 )
 @JsonSubTypes(
     JsonSubTypes.Type(value = QaPackageCreatedEvent::class, name = "QA_PACKAGE_CREATED"),
@@ -21,7 +21,7 @@ import java.util.UUID
     JsonSubTypes.Type(value = TestRunCompletedEvent::class, name = "TEST_RUN_COMPLETED"),
     JsonSubTypes.Type(value = ScenarioGeneratedEvent::class, name = "SCENARIO_GENERATED"),
     JsonSubTypes.Type(value = AiGenerationRequestedEvent::class, name = "AI_GENERATION_REQUESTED"),
-    JsonSubTypes.Type(value = AiGenerationCompletedEvent::class, name = "AI_GENERATION_COMPLETED")
+    JsonSubTypes.Type(value = AiGenerationCompletedEvent::class, name = "AI_GENERATION_COMPLETED"),
 )
 sealed class DomainEvent {
     abstract val eventId: String
@@ -41,7 +41,7 @@ data class QaPackageCreatedEvent(
     val triggeredBy: String,
     val baseUrl: String,
     val hasSpecUrl: Boolean,
-    val hasSpecContent: Boolean
+    val hasSpecContent: Boolean,
 ) : DomainEvent()
 
 data class QaPackageStatusChangedEvent(
@@ -51,7 +51,7 @@ data class QaPackageStatusChangedEvent(
     override val aggregateType: String = "QaPackage",
     val previousStatus: String,
     val newStatus: String,
-    val reason: String? = null
+    val reason: String? = null,
 ) : DomainEvent()
 
 data class QaPackageCompletedEvent(
@@ -64,7 +64,7 @@ data class QaPackageCompletedEvent(
     val passedScenarios: Int,
     val failedScenarios: Int,
     val durationMs: Long?,
-    val coveragePercentage: Double?
+    val coveragePercentage: Double?,
 ) : DomainEvent()
 
 // ==================== Test Run Events ====================
@@ -76,7 +76,7 @@ data class TestRunStartedEvent(
     override val aggregateType: String = "TestRun",
     val packageId: String,
     val scenarioId: String,
-    val runNumber: Int
+    val runNumber: Int,
 ) : DomainEvent()
 
 data class TestRunCompletedEvent(
@@ -90,7 +90,7 @@ data class TestRunCompletedEvent(
     val durationMs: Long,
     val stepsExecuted: Int,
     val stepsPassed: Int,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : DomainEvent()
 
 // ==================== Scenario Events ====================
@@ -103,7 +103,7 @@ data class ScenarioGeneratedEvent(
     val packageId: String,
     val scenarioName: String,
     val stepsCount: Int,
-    val priority: String
+    val priority: String,
 ) : DomainEvent()
 
 // ==================== AI Generation Events ====================
@@ -115,7 +115,7 @@ data class AiGenerationRequestedEvent(
     override val aggregateType: String = "QaPackage",
     val provider: String,
     val model: String,
-    val promptTokensEstimate: Int
+    val promptTokensEstimate: Int,
 ) : DomainEvent()
 
 data class AiGenerationCompletedEvent(
@@ -129,5 +129,5 @@ data class AiGenerationCompletedEvent(
     val scenariosGenerated: Int,
     val tokensUsed: Int,
     val durationMs: Long,
-    val errorMessage: String? = null
+    val errorMessage: String? = null,
 ) : DomainEvent()

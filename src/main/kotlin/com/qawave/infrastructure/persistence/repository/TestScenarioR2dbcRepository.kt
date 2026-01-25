@@ -2,6 +2,7 @@ package com.qawave.infrastructure.persistence.repository
 
 import com.qawave.infrastructure.persistence.entity.TestScenarioEntity
 import kotlinx.coroutines.flow.Flow
+import org.springframework.data.domain.Pageable
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import org.springframework.stereotype.Repository
@@ -14,7 +15,6 @@ import java.util.UUID
  */
 @Repository
 interface TestScenarioR2dbcRepository : CoroutineCrudRepository<TestScenarioEntity, UUID> {
-
     /**
      * Find scenarios belonging to a QA package.
      */
@@ -71,4 +71,25 @@ interface TestScenarioR2dbcRepository : CoroutineCrudRepository<TestScenarioEnti
      * Delete all scenarios for a QA package.
      */
     suspend fun deleteByQaPackageId(qaPackageId: UUID)
+
+    /**
+     * Find all scenarios with pagination.
+     */
+    fun findAllBy(pageable: Pageable): Flow<TestScenarioEntity>
+
+    /**
+     * Find scenarios by QA package ID with pagination.
+     */
+    fun findByQaPackageId(qaPackageId: UUID, pageable: Pageable): Flow<TestScenarioEntity>
+
+    /**
+     * Find scenarios by status with pagination.
+     */
+    fun findByStatus(status: String, pageable: Pageable): Flow<TestScenarioEntity>
+
+    /**
+     * Find all scenarios ordered by created_at descending with pagination.
+     */
+    @Query("SELECT * FROM test_scenarios ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
+    fun findAllOrderByCreatedAtDesc(limit: Int, offset: Int): Flow<TestScenarioEntity>
 }

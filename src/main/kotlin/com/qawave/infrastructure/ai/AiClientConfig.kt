@@ -1,10 +1,8 @@
 package com.qawave.infrastructure.ai
 
-import org.springframework.beans.factory.annotation.Value
 import org.springframework.boot.autoconfigure.condition.ConditionalOnProperty
 import org.springframework.context.annotation.Bean
 import org.springframework.context.annotation.Configuration
-import org.springframework.context.annotation.Primary
 
 /**
  * Configuration for AI client bean wiring.
@@ -12,7 +10,6 @@ import org.springframework.context.annotation.Primary
  */
 @Configuration
 class AiClientConfig {
-
     /**
      * Provides the OpenAI client as the delegate when provider is 'openai'.
      */
