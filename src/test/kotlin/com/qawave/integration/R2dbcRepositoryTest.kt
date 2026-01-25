@@ -33,14 +33,14 @@ import kotlin.test.assertNotNull
 @DataR2dbcTest
 @Testcontainers
 class R2dbcRepositoryTest {
-
     companion object {
         @Container
         @JvmStatic
-        val postgresContainer = PostgreSQLContainer("postgres:16-alpine")
-            .withDatabaseName("qawave_test")
-            .withUsername("test")
-            .withPassword("test")
+        val postgresContainer =
+            PostgreSQLContainer("postgres:16-alpine")
+                .withDatabaseName("qawave_test")
+                .withUsername("test")
+                .withPassword("test")
 
         @DynamicPropertySource
         @JvmStatic
@@ -69,9 +69,11 @@ class R2dbcRepositoryTest {
     private lateinit var testStepResultRepository: TestStepResultR2dbcRepository
 
     @BeforeEach
-    fun setup() = runTest {
-        // Create tables for testing (matching actual entity structure)
-        databaseClient.sql("""
+    fun setup() =
+        runTest {
+            // Create tables for testing (matching actual entity structure)
+            databaseClient.sql(
+                """
             CREATE TABLE IF NOT EXISTS qa_packages (
                 id UUID PRIMARY KEY,
                 name VARCHAR(255) NOT NULL,
@@ -91,9 +93,11 @@ class R2dbcRepositoryTest {
                 created_at TIMESTAMP WITH TIME ZONE NOT NULL,
                 updated_at TIMESTAMP WITH TIME ZONE NOT NULL
             )
-        """).then().block()
+        """,
+            ).then().block()
 
-        databaseClient.sql("""
+            databaseClient.sql(
+                """
             CREATE TABLE IF NOT EXISTS test_scenarios (
                 id UUID PRIMARY KEY,
                 suite_id UUID,
@@ -107,9 +111,11 @@ class R2dbcRepositoryTest {
                 created_at TIMESTAMP WITH TIME ZONE NOT NULL,
                 updated_at TIMESTAMP WITH TIME ZONE NOT NULL
             )
-        """).then().block()
+        """,
+            ).then().block()
 
-        databaseClient.sql("""
+            databaseClient.sql(
+                """
             CREATE TABLE IF NOT EXISTS test_runs (
                 id UUID PRIMARY KEY,
                 scenario_id UUID NOT NULL,
@@ -123,9 +129,11 @@ class R2dbcRepositoryTest {
                 created_at TIMESTAMP WITH TIME ZONE NOT NULL,
                 updated_at TIMESTAMP WITH TIME ZONE NOT NULL
             )
-        """).then().block()
+        """,
+            ).then().block()
 
-        databaseClient.sql("""
+            databaseClient.sql(
+                """
             CREATE TABLE IF NOT EXISTS test_step_results (
                 id UUID PRIMARY KEY,
                 run_id UUID NOT NULL,
@@ -141,90 +149,96 @@ class R2dbcRepositoryTest {
                 duration_ms BIGINT NOT NULL,
                 executed_at TIMESTAMP WITH TIME ZONE NOT NULL
             )
-        """).then().block()
+        """,
+            ).then().block()
 
-        // Clean up before each test
-        databaseClient.sql("DELETE FROM test_step_results").then().block()
-        databaseClient.sql("DELETE FROM test_runs").then().block()
-        databaseClient.sql("DELETE FROM test_scenarios").then().block()
-        databaseClient.sql("DELETE FROM qa_packages").then().block()
-    }
+            // Clean up before each test
+            databaseClient.sql("DELETE FROM test_step_results").then().block()
+            databaseClient.sql("DELETE FROM test_runs").then().block()
+            databaseClient.sql("DELETE FROM test_scenarios").then().block()
+            databaseClient.sql("DELETE FROM qa_packages").then().block()
+        }
 
     @Nested
     inner class QaPackageRepositoryTests {
-
         @Test
-        fun `save and find by id`() = runTest {
-            val entity = createQaPackageEntity()
+        fun `save and find by id`() =
+            runTest {
+                val entity = createQaPackageEntity()
 
-            val saved = qaPackageRepository.save(entity)
-            val found = qaPackageRepository.findById(saved.id!!)
+                val saved = qaPackageRepository.save(entity)
+                val found = qaPackageRepository.findById(saved.id!!)
 
-            assertNotNull(found)
-            assertEquals(entity.name, found.name)
-            assertEquals(entity.status, found.status)
-        }
-
-        @Test
-        fun `find by status`() = runTest {
-            val pending = createQaPackageEntity(status = "PENDING")
-            val running = createQaPackageEntity(status = "RUNNING")
-            qaPackageRepository.save(pending)
-            qaPackageRepository.save(running)
-
-            val result = qaPackageRepository.findByStatus("PENDING")
-
-            assertEquals(1, result.size)
-            assertEquals("PENDING", result[0].status)
-        }
-
-        @Test
-        fun `find all by status with Flow`() = runTest {
-            repeat(3) { qaPackageRepository.save(createQaPackageEntity(status = "PENDING")) }
-            repeat(2) { qaPackageRepository.save(createQaPackageEntity(status = "RUNNING")) }
-
-            val result = qaPackageRepository.findAllByStatus("PENDING").toList()
-
-            assertEquals(3, result.size)
-        }
-
-        @Test
-        fun `count by status`() = runTest {
-            repeat(3) { qaPackageRepository.save(createQaPackageEntity(status = "COMPLETE")) }
-            repeat(2) { qaPackageRepository.save(createQaPackageEntity(status = "FAILED_EXECUTION")) }
-
-            assertEquals(3, qaPackageRepository.countByStatus("COMPLETE"))
-            assertEquals(2, qaPackageRepository.countByStatus("FAILED_EXECUTION"))
-        }
-
-        @Test
-        fun `find by spec hash`() = runTest {
-            val entity = createQaPackageEntity(specHash = "abc123hash")
-            qaPackageRepository.save(entity)
-
-            val found = qaPackageRepository.findBySpecHash("abc123hash")
-
-            assertNotNull(found)
-            assertEquals("abc123hash", found.specHash)
-        }
-
-        @Test
-        fun `pagination works`() = runTest {
-            repeat(10) { i ->
-                qaPackageRepository.save(createQaPackageEntity(name = "Package $i"))
+                assertNotNull(found)
+                assertEquals(entity.name, found.name)
+                assertEquals(entity.status, found.status)
             }
 
-            val page1 = qaPackageRepository.findAllBy(PageRequest.of(0, 5)).toList()
-            val page2 = qaPackageRepository.findAllBy(PageRequest.of(1, 5)).toList()
+        @Test
+        fun `find by status`() =
+            runTest {
+                val pending = createQaPackageEntity(status = "PENDING")
+                val running = createQaPackageEntity(status = "RUNNING")
+                qaPackageRepository.save(pending)
+                qaPackageRepository.save(running)
 
-            assertEquals(5, page1.size)
-            assertEquals(5, page2.size)
-        }
+                val result = qaPackageRepository.findByStatus("PENDING")
+
+                assertEquals(1, result.size)
+                assertEquals("PENDING", result[0].status)
+            }
+
+        @Test
+        fun `find all by status with Flow`() =
+            runTest {
+                repeat(3) { qaPackageRepository.save(createQaPackageEntity(status = "PENDING")) }
+                repeat(2) { qaPackageRepository.save(createQaPackageEntity(status = "RUNNING")) }
+
+                val result = qaPackageRepository.findAllByStatus("PENDING").toList()
+
+                assertEquals(3, result.size)
+            }
+
+        @Test
+        fun `count by status`() =
+            runTest {
+                repeat(3) { qaPackageRepository.save(createQaPackageEntity(status = "COMPLETE")) }
+                repeat(2) { qaPackageRepository.save(createQaPackageEntity(status = "FAILED_EXECUTION")) }
+
+                assertEquals(3, qaPackageRepository.countByStatus("COMPLETE"))
+                assertEquals(2, qaPackageRepository.countByStatus("FAILED_EXECUTION"))
+            }
+
+        @Test
+        fun `find by spec hash`() =
+            runTest {
+                val entity = createQaPackageEntity(specHash = "abc123hash")
+                qaPackageRepository.save(entity)
+
+                val found = qaPackageRepository.findBySpecHash("abc123hash")
+
+                assertNotNull(found)
+                assertEquals("abc123hash", found.specHash)
+            }
+
+        @Test
+        fun `pagination works`() =
+            runTest {
+                repeat(10) { i ->
+                    qaPackageRepository.save(createQaPackageEntity(name = "Package $i"))
+                }
+
+                val page1 = qaPackageRepository.findAllBy(PageRequest.of(0, 5)).toList()
+                val page2 = qaPackageRepository.findAllBy(PageRequest.of(1, 5)).toList()
+
+                assertEquals(5, page1.size)
+                assertEquals(5, page2.size)
+            }
 
         private fun createQaPackageEntity(
             name: String = "Test Package",
             status: String = "PENDING",
-            specHash: String? = null
+            specHash: String? = null,
         ) = QaPackageEntity(
             id = UUID.randomUUID(),
             name = name,
@@ -242,48 +256,50 @@ class R2dbcRepositoryTest {
             startedAt = null,
             completedAt = null,
             createdAt = Instant.now(),
-            updatedAt = Instant.now()
+            updatedAt = Instant.now(),
         )
     }
 
     @Nested
     inner class TestScenarioRepositoryTests {
+        @Test
+        fun `save and find by QA package ID`() =
+            runTest {
+                val packageId = UUID.randomUUID()
+                val scenario1 = createTestScenarioEntity(qaPackageId = packageId)
+                val scenario2 = createTestScenarioEntity(qaPackageId = packageId)
+
+                testScenarioRepository.save(scenario1)
+                testScenarioRepository.save(scenario2)
+
+                val result = testScenarioRepository.findByQaPackageId(packageId)
+
+                assertEquals(2, result.size)
+            }
 
         @Test
-        fun `save and find by QA package ID`() = runTest {
-            val packageId = UUID.randomUUID()
-            val scenario1 = createTestScenarioEntity(qaPackageId = packageId)
-            val scenario2 = createTestScenarioEntity(qaPackageId = packageId)
+        fun `count by QA package ID`() =
+            runTest {
+                val packageId = UUID.randomUUID()
+                repeat(5) { testScenarioRepository.save(createTestScenarioEntity(qaPackageId = packageId)) }
 
-            testScenarioRepository.save(scenario1)
-            testScenarioRepository.save(scenario2)
-
-            val result = testScenarioRepository.findByQaPackageId(packageId)
-
-            assertEquals(2, result.size)
-        }
+                assertEquals(5, testScenarioRepository.countByQaPackageId(packageId))
+            }
 
         @Test
-        fun `count by QA package ID`() = runTest {
-            val packageId = UUID.randomUUID()
-            repeat(5) { testScenarioRepository.save(createTestScenarioEntity(qaPackageId = packageId)) }
+        fun `delete by QA package ID`() =
+            runTest {
+                val packageId = UUID.randomUUID()
+                repeat(3) { testScenarioRepository.save(createTestScenarioEntity(qaPackageId = packageId)) }
 
-            assertEquals(5, testScenarioRepository.countByQaPackageId(packageId))
-        }
+                testScenarioRepository.deleteByQaPackageId(packageId)
 
-        @Test
-        fun `delete by QA package ID`() = runTest {
-            val packageId = UUID.randomUUID()
-            repeat(3) { testScenarioRepository.save(createTestScenarioEntity(qaPackageId = packageId)) }
-
-            testScenarioRepository.deleteByQaPackageId(packageId)
-
-            assertEquals(0, testScenarioRepository.countByQaPackageId(packageId))
-        }
+                assertEquals(0, testScenarioRepository.countByQaPackageId(packageId))
+            }
 
         private fun createTestScenarioEntity(
             qaPackageId: UUID = UUID.randomUUID(),
-            status: String = "PENDING"
+            status: String = "PENDING",
         ) = TestScenarioEntity(
             id = UUID.randomUUID(),
             qaPackageId = qaPackageId,
@@ -295,57 +311,59 @@ class R2dbcRepositoryTest {
             source = "AI_GENERATED",
             status = status,
             createdAt = Instant.now(),
-            updatedAt = Instant.now()
+            updatedAt = Instant.now(),
         )
     }
 
     @Nested
     inner class TestRunRepositoryTests {
+        @Test
+        fun `save and find by scenario ID`() =
+            runTest {
+                val scenarioId = UUID.randomUUID()
+                val run1 = createTestRunEntity(scenarioId = scenarioId)
+                val run2 = createTestRunEntity(scenarioId = scenarioId)
+
+                testRunRepository.save(run1)
+                testRunRepository.save(run2)
+
+                val result = testRunRepository.findByScenarioId(scenarioId)
+
+                assertEquals(2, result.size)
+            }
 
         @Test
-        fun `save and find by scenario ID`() = runTest {
-            val scenarioId = UUID.randomUUID()
-            val run1 = createTestRunEntity(scenarioId = scenarioId)
-            val run2 = createTestRunEntity(scenarioId = scenarioId)
+        fun `find latest by scenario ID`() =
+            runTest {
+                val scenarioId = UUID.randomUUID()
+                val oldRun = createTestRunEntity(scenarioId = scenarioId, createdAt = Instant.now().minusSeconds(60))
+                val newRun = createTestRunEntity(scenarioId = scenarioId, createdAt = Instant.now())
 
-            testRunRepository.save(run1)
-            testRunRepository.save(run2)
+                testRunRepository.save(oldRun)
+                testRunRepository.save(newRun)
 
-            val result = testRunRepository.findByScenarioId(scenarioId)
+                val latest = testRunRepository.findLatestByScenarioId(scenarioId)
 
-            assertEquals(2, result.size)
-        }
-
-        @Test
-        fun `find latest by scenario ID`() = runTest {
-            val scenarioId = UUID.randomUUID()
-            val oldRun = createTestRunEntity(scenarioId = scenarioId, createdAt = Instant.now().minusSeconds(60))
-            val newRun = createTestRunEntity(scenarioId = scenarioId, createdAt = Instant.now())
-
-            testRunRepository.save(oldRun)
-            testRunRepository.save(newRun)
-
-            val latest = testRunRepository.findLatestByScenarioId(scenarioId)
-
-            assertNotNull(latest)
-            assertEquals(newRun.id, latest.id)
-        }
+                assertNotNull(latest)
+                assertEquals(newRun.id, latest.id)
+            }
 
         @Test
-        fun `count passed and failed`() = runTest {
-            val packageId = UUID.randomUUID()
-            repeat(3) { testRunRepository.save(createTestRunEntity(qaPackageId = packageId, status = "PASSED")) }
-            repeat(2) { testRunRepository.save(createTestRunEntity(qaPackageId = packageId, status = "FAILED")) }
+        fun `count passed and failed`() =
+            runTest {
+                val packageId = UUID.randomUUID()
+                repeat(3) { testRunRepository.save(createTestRunEntity(qaPackageId = packageId, status = "PASSED")) }
+                repeat(2) { testRunRepository.save(createTestRunEntity(qaPackageId = packageId, status = "FAILED")) }
 
-            assertEquals(3, testRunRepository.countPassedByQaPackageId(packageId))
-            assertEquals(2, testRunRepository.countFailedByQaPackageId(packageId))
-        }
+                assertEquals(3, testRunRepository.countPassedByQaPackageId(packageId))
+                assertEquals(2, testRunRepository.countFailedByQaPackageId(packageId))
+            }
 
         private fun createTestRunEntity(
             scenarioId: UUID = UUID.randomUUID(),
             qaPackageId: UUID = UUID.randomUUID(),
             status: String = "PENDING",
-            createdAt: Instant = Instant.now()
+            createdAt: Instant = Instant.now(),
         ) = TestRunEntity(
             id = UUID.randomUUID(),
             scenarioId = scenarioId,
@@ -357,77 +375,84 @@ class R2dbcRepositoryTest {
             startedAt = Instant.now(),
             completedAt = null,
             createdAt = createdAt,
-            updatedAt = createdAt
+            updatedAt = createdAt,
         )
     }
 
     @Nested
     inner class TestStepResultRepositoryTests {
-
         @Test
-        fun `save and find by run ID`() = runTest {
-            val runId = UUID.randomUUID()
-            val result1 = createTestStepResultEntity(runId = runId, stepIndex = 0)
-            val result2 = createTestStepResultEntity(runId = runId, stepIndex = 1)
+        fun `save and find by run ID`() =
+            runTest {
+                val runId = UUID.randomUUID()
+                val result1 = createTestStepResultEntity(runId = runId, stepIndex = 0)
+                val result2 = createTestStepResultEntity(runId = runId, stepIndex = 1)
 
-            testStepResultRepository.save(result1)
-            testStepResultRepository.save(result2)
+                testStepResultRepository.save(result1)
+                testStepResultRepository.save(result2)
 
-            val result = testStepResultRepository.findByRunId(runId)
+                val result = testStepResultRepository.findByRunId(runId)
 
-            assertEquals(2, result.size)
-        }
-
-        @Test
-        fun `find by run ID and step index`() = runTest {
-            val runId = UUID.randomUUID()
-            val step0 = createTestStepResultEntity(runId = runId, stepIndex = 0, stepName = "Step 0")
-            val step1 = createTestStepResultEntity(runId = runId, stepIndex = 1, stepName = "Step 1")
-
-            testStepResultRepository.save(step0)
-            testStepResultRepository.save(step1)
-
-            val found = testStepResultRepository.findByRunIdAndStepIndex(runId, 1)
-
-            assertNotNull(found)
-            assertEquals("Step 1", found.stepName)
-        }
-
-        @Test
-        fun `count passed and failed`() = runTest {
-            val runId = UUID.randomUUID()
-            repeat(3) { i ->
-                testStepResultRepository.save(createTestStepResultEntity(runId = runId, stepIndex = i, passed = true))
-            }
-            repeat(2) { i ->
-                testStepResultRepository.save(createTestStepResultEntity(runId = runId, stepIndex = i + 3, passed = false))
+                assertEquals(2, result.size)
             }
 
-            assertEquals(3, testStepResultRepository.countPassedByRunId(runId))
-            assertEquals(2, testStepResultRepository.countFailedByRunId(runId))
-        }
+        @Test
+        fun `find by run ID and step index`() =
+            runTest {
+                val runId = UUID.randomUUID()
+                val step0 = createTestStepResultEntity(runId = runId, stepIndex = 0, stepName = "Step 0")
+                val step1 = createTestStepResultEntity(runId = runId, stepIndex = 1, stepName = "Step 1")
+
+                testStepResultRepository.save(step0)
+                testStepResultRepository.save(step1)
+
+                val found = testStepResultRepository.findByRunIdAndStepIndex(runId, 1)
+
+                assertNotNull(found)
+                assertEquals("Step 1", found.stepName)
+            }
 
         @Test
-        fun `find slowest step`() = runTest {
-            val runId = UUID.randomUUID()
-            val fastStep = createTestStepResultEntity(runId = runId, stepIndex = 0, durationMs = 100)
-            val slowStep = createTestStepResultEntity(runId = runId, stepIndex = 1, durationMs = 500)
+        fun `count passed and failed`() =
+            runTest {
+                val runId = UUID.randomUUID()
+                repeat(3) { i ->
+                    testStepResultRepository.save(
+                        createTestStepResultEntity(runId = runId, stepIndex = i, passed = true),
+                    )
+                }
+                repeat(2) { i ->
+                    testStepResultRepository.save(
+                        createTestStepResultEntity(runId = runId, stepIndex = i + 3, passed = false),
+                    )
+                }
 
-            testStepResultRepository.save(fastStep)
-            testStepResultRepository.save(slowStep)
+                assertEquals(3, testStepResultRepository.countPassedByRunId(runId))
+                assertEquals(2, testStepResultRepository.countFailedByRunId(runId))
+            }
 
-            val slowest = testStepResultRepository.findSlowestStepByRunId(runId)
+        @Test
+        fun `find slowest step`() =
+            runTest {
+                val runId = UUID.randomUUID()
+                val fastStep = createTestStepResultEntity(runId = runId, stepIndex = 0, durationMs = 100)
+                val slowStep = createTestStepResultEntity(runId = runId, stepIndex = 1, durationMs = 500)
 
-            assertNotNull(slowest)
-            assertEquals(500L, slowest.durationMs)
-        }
+                testStepResultRepository.save(fastStep)
+                testStepResultRepository.save(slowStep)
+
+                val slowest = testStepResultRepository.findSlowestStepByRunId(runId)
+
+                assertNotNull(slowest)
+                assertEquals(500L, slowest.durationMs)
+            }
 
         private fun createTestStepResultEntity(
             runId: UUID = UUID.randomUUID(),
             stepIndex: Int = 0,
             stepName: String = "Test Step",
             passed: Boolean = true,
-            durationMs: Long = 100
+            durationMs: Long = 100,
         ) = TestStepResultEntity(
             id = UUID.randomUUID(),
             runId = runId,
@@ -441,7 +466,7 @@ class R2dbcRepositoryTest {
             extractedValuesJson = "{}",
             errorMessage = null,
             durationMs = durationMs,
-            executedAt = Instant.now()
+            executedAt = Instant.now(),
         )
     }
 }

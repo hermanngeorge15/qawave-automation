@@ -12,9 +12,8 @@ import java.util.UUID
  */
 @Component
 class TestStepResultMapper(
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) {
-
     /**
      * Converts an entity to a domain model.
      */
@@ -31,7 +30,7 @@ class TestStepResultMapper(
             extractedValues = parseExtractedValues(entity.extractedValuesJson),
             errorMessage = entity.errorMessage,
             durationMs = entity.durationMs,
-            executedAt = entity.executedAt
+            executedAt = entity.executedAt,
         )
     }
 
@@ -52,14 +51,17 @@ class TestStepResultMapper(
             extractedValuesJson = serializeExtractedValues(domain.extractedValues),
             errorMessage = domain.errorMessage,
             durationMs = domain.durationMs,
-            executedAt = domain.executedAt
+            executedAt = domain.executedAt,
         )
     }
 
     /**
      * Creates a new entity with a predetermined ID.
      */
-    fun toEntityWithId(domain: TestStepResult, id: UUID): TestStepResultEntity {
+    fun toEntityWithId(
+        domain: TestStepResult,
+        id: UUID,
+    ): TestStepResultEntity {
         return TestStepResultEntity(
             id = id,
             runId = domain.runId.value,
@@ -73,7 +75,7 @@ class TestStepResultMapper(
             extractedValuesJson = serializeExtractedValues(domain.extractedValues),
             errorMessage = domain.errorMessage,
             durationMs = domain.durationMs,
-            executedAt = domain.executedAt
+            executedAt = domain.executedAt,
         )
     }
 

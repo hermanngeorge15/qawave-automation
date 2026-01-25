@@ -66,16 +66,25 @@ interface QaPackageR2dbcRepository : CoroutineCrudRepository<QaPackageEntity, UU
     /**
      * Find packages by status with pagination.
      */
-    fun findByStatus(status: String, pageable: Pageable): Flow<QaPackageEntity>
+    fun findByStatus(
+        status: String,
+        pageable: Pageable,
+    ): Flow<QaPackageEntity>
 
     /**
      * Find packages triggered by a user with pagination.
      */
-    fun findByTriggeredBy(triggeredBy: String, pageable: Pageable): Flow<QaPackageEntity>
+    fun findByTriggeredBy(
+        triggeredBy: String,
+        pageable: Pageable,
+    ): Flow<QaPackageEntity>
 
     /**
      * Find all packages ordered by created_at descending with pagination.
      */
     @Query("SELECT * FROM qa_packages ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
-    fun findAllOrderByCreatedAtDesc(limit: Int, offset: Int): Flow<QaPackageEntity>
+    fun findAllOrderByCreatedAtDesc(
+        limit: Int,
+        offset: Int,
+    ): Flow<QaPackageEntity>
 }

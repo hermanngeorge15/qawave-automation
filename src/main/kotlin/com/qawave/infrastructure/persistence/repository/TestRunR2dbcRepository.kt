@@ -109,21 +109,33 @@ interface TestRunR2dbcRepository : CoroutineCrudRepository<TestRunEntity, UUID> 
     /**
      * Find runs by QA package ID with pagination.
      */
-    fun findByQaPackageId(qaPackageId: UUID, pageable: Pageable): Flow<TestRunEntity>
+    fun findByQaPackageId(
+        qaPackageId: UUID,
+        pageable: Pageable,
+    ): Flow<TestRunEntity>
 
     /**
      * Find runs by scenario ID with pagination.
      */
-    fun findByScenarioId(scenarioId: UUID, pageable: Pageable): Flow<TestRunEntity>
+    fun findByScenarioId(
+        scenarioId: UUID,
+        pageable: Pageable,
+    ): Flow<TestRunEntity>
 
     /**
      * Find runs by status with pagination.
      */
-    fun findByStatus(status: String, pageable: Pageable): Flow<TestRunEntity>
+    fun findByStatus(
+        status: String,
+        pageable: Pageable,
+    ): Flow<TestRunEntity>
 
     /**
      * Find all runs ordered by created_at descending with pagination.
      */
     @Query("SELECT * FROM test_runs ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
-    fun findAllOrderByCreatedAtDesc(limit: Int, offset: Int): Flow<TestRunEntity>
+    fun findAllOrderByCreatedAtDesc(
+        limit: Int,
+        offset: Int,
+    ): Flow<TestRunEntity>
 }

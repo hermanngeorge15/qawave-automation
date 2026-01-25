@@ -18,41 +18,15 @@ import java.time.Instant
 @Transactional
 class ScenarioServiceImpl(
     private val repository: TestScenarioR2dbcRepository,
-    private val mapper: TestScenarioMapper
+    private val mapper: TestScenarioMapper,
 ) : ScenarioService {
-
     private val logger = LoggerFactory.getLogger(ScenarioServiceImpl::class.java)
 
     override suspend fun create(command: CreateScenarioCommand): TestScenario {
         logger.debug("Creating scenario: {}", command.name)
 
         val now = Instant.now()
-        val scenario = TestScenario(
-            id = ScenarioId.generate(),
-            suiteId = command.suiteId,
-            qaPackageId = command.qaPackageId,
-            name = command.name,
-            description = command.description,
-            steps = command.steps,
-            tags = command.tags,
-            source = command.source,
-            status = command.status,
-            createdAt = now,
-            updatedAt = now
-        )
-
-        val entity = mapper.toEntityWithId(scenario, scenario.id.value)
-        val savedEntity = repository.save(entity)
-
-        logger.info("Created scenario: {} with id: {}", scenario.name, scenario.id.value)
-        return mapper.toDomain(savedEntity)
-    }
-
-    override suspend fun createBatch(commands: List<CreateScenarioCommand>): List<TestScenario> {
-        logger.debug("Creating {} scenarios in batch", commands.size)
-
-        val scenarios = commands.map { command ->
-            val now = Instant.now()
+        val scenario =
             TestScenario(
                 id = ScenarioId.generate(),
                 suiteId = command.suiteId,
@@ -64,9 +38,36 @@ class ScenarioServiceImpl(
                 source = command.source,
                 status = command.status,
                 createdAt = now,
-                updatedAt = now
+                updatedAt = now,
             )
-        }
+
+        val entity = mapper.toEntityWithId(scenario, scenario.id.value)
+        val savedEntity = repository.save(entity)
+
+        logger.info("Created scenario: {} with id: {}", scenario.name, scenario.id.value)
+        return mapper.toDomain(savedEntity)
+    }
+
+    override suspend fun createBatch(commands: List<CreateScenarioCommand>): List<TestScenario> {
+        logger.debug("Creating {} scenarios in batch", commands.size)
+
+        val scenarios =
+            commands.map { command ->
+                val now = Instant.now()
+                TestScenario(
+                    id = ScenarioId.generate(),
+                    suiteId = command.suiteId,
+                    qaPackageId = command.qaPackageId,
+                    name = command.name,
+                    description = command.description,
+                    steps = command.steps,
+                    tags = command.tags,
+                    source = command.source,
+                    status = command.status,
+                    createdAt = now,
+                    updatedAt = now,
+                )
+            }
 
         val entities = scenarios.map { mapper.toEntityWithId(it, it.id.value) }
         val savedEntities = repository.saveAll(entities).toList()
@@ -80,7 +81,10 @@ class ScenarioServiceImpl(
         return repository.findById(id.value)?.let { mapper.toDomain(it) }
     }
 
-    override suspend fun findAll(page: Int, size: Int): Page<TestScenario> {
+    override suspend fun findAll(
+        page: Int,
+        size: Int,
+    ): Page<TestScenario> {
         logger.debug("Finding all scenarios, page: {}, size: {}", page, size)
 
         val offset = page * size
@@ -88,17 +92,18 @@ class ScenarioServiceImpl(
         val totalElements = entities.size.toLong()
         val totalPages = if (size > 0) ((totalElements + size - 1) / size).toInt() else 0
 
-        val pagedEntities = entities
-            .drop(offset)
-            .take(size)
-            .map { mapper.toDomain(it) }
+        val pagedEntities =
+            entities
+                .drop(offset)
+                .take(size)
+                .map { mapper.toDomain(it) }
 
         return Page(
             content = pagedEntities,
             page = page,
             size = size,
             totalElements = totalElements,
-            totalPages = totalPages
+            totalPages = totalPages,
         )
     }
 
@@ -147,26 +152,31 @@ class ScenarioServiceImpl(
         return repository.findByTag("[\"$tag\"]").map { mapper.toDomain(it) }
     }
 
-    override suspend fun update(id: ScenarioId, command: UpdateScenarioCommand): TestScenario {
+    override suspend fun update(
+        id: ScenarioId,
+        command: UpdateScenarioCommand,
+    ): TestScenario {
         logger.debug("Updating scenario: {}", id.value)
 
-        val existing = repository.findById(id.value)
-            ?: throw ScenarioNotFoundException(id)
+        val existing =
+            repository.findById(id.value)
+                ?: throw ScenarioNotFoundException(id)
 
         val current = mapper.toDomain(existing)
-        val updated = TestScenario(
-            id = current.id,
-            suiteId = current.suiteId,
-            qaPackageId = current.qaPackageId,
-            name = command.name ?: current.name,
-            description = command.description ?: current.description,
-            steps = command.steps ?: current.steps,
-            tags = command.tags ?: current.tags,
-            source = current.source,
-            status = command.status ?: current.status,
-            createdAt = current.createdAt,
-            updatedAt = Instant.now()
-        )
+        val updated =
+            TestScenario(
+                id = current.id,
+                suiteId = current.suiteId,
+                qaPackageId = current.qaPackageId,
+                name = command.name ?: current.name,
+                description = command.description ?: current.description,
+                steps = command.steps ?: current.steps,
+                tags = command.tags ?: current.tags,
+                source = current.source,
+                status = command.status ?: current.status,
+                createdAt = current.createdAt,
+                updatedAt = Instant.now(),
+            )
 
         val entity = mapper.toEntity(updated)
         val savedEntity = repository.save(entity)
@@ -175,7 +185,10 @@ class ScenarioServiceImpl(
         return mapper.toDomain(savedEntity)
     }
 
-    override suspend fun updateStatus(id: ScenarioId, status: ScenarioStatus): TestScenario {
+    override suspend fun updateStatus(
+        id: ScenarioId,
+        status: ScenarioStatus,
+    ): TestScenario {
         logger.debug("Updating scenario status: {} to {}", id.value, status)
         return update(id, UpdateScenarioCommand(status = status))
     }

@@ -9,7 +9,6 @@ import java.time.Instant
  * Provides business logic for running test scenarios and recording results.
  */
 interface TestExecutionService {
-
     /**
      * Starts a new test run for a scenario.
      *
@@ -25,7 +24,10 @@ interface TestExecutionService {
      * @param scenario The scenario to execute
      * @return The completed test run with results
      */
-    suspend fun executeRun(runId: TestRunId, scenario: TestScenario): TestRun
+    suspend fun executeRun(
+        runId: TestRunId,
+        scenario: TestScenario,
+    ): TestRun
 
     /**
      * Executes a single test step.
@@ -40,7 +42,7 @@ interface TestExecutionService {
         runId: TestRunId,
         step: TestStep,
         baseUrl: String,
-        context: ExecutionContext
+        context: ExecutionContext,
     ): TestStepResult
 
     /**
@@ -66,7 +68,10 @@ interface TestExecutionService {
      * @param size The page size
      * @return A page of test runs
      */
-    suspend fun findAll(page: Int = 0, size: Int = 20): Page<TestRun>
+    suspend fun findAll(
+        page: Int = 0,
+        size: Int = 20,
+    ): Page<TestRun>
 
     /**
      * Finds test runs for a scenario.
@@ -138,7 +143,10 @@ interface TestExecutionService {
      * @param status The new status
      * @return The updated test run
      */
-    suspend fun updateStatus(id: TestRunId, status: TestRunStatus): TestRun
+    suspend fun updateStatus(
+        id: TestRunId,
+        status: TestRunStatus,
+    ): TestRun
 
     /**
      * Marks a test run as completed.
@@ -147,7 +155,10 @@ interface TestExecutionService {
      * @param status The final status (PASSED, FAILED, or ERROR)
      * @return The updated test run
      */
-    suspend fun markCompleted(id: TestRunId, status: TestRunStatus): TestRun
+    suspend fun markCompleted(
+        id: TestRunId,
+        status: TestRunStatus,
+    ): TestRun
 
     /**
      * Cancels a running test.
@@ -214,7 +225,7 @@ data class StartRunCommand(
     val qaPackageId: QaPackageId? = null,
     val triggeredBy: String,
     val baseUrl: String,
-    val environment: Map<String, String> = emptyMap()
+    val environment: Map<String, String> = emptyMap(),
 ) {
     init {
         require(baseUrl.isNotBlank()) { "Base URL cannot be blank" }
@@ -228,7 +239,7 @@ data class StartRunCommand(
  */
 data class ExecutionContext(
     val extractedValues: MutableMap<String, String> = mutableMapOf(),
-    val environment: Map<String, String> = emptyMap()
+    val environment: Map<String, String> = emptyMap(),
 ) {
     /**
      * Resolves a value, replacing variables with extracted/environment values.

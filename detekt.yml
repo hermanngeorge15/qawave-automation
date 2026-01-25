@@ -41,9 +41,9 @@ style:
   UnusedPrivateMember:
     active: true
     allowedNames: "(_|ignored|expected|serialVersionUID)"
+  MaxLineLength:
+    maxLineLength: 200
   ReturnCount:
     max: 5
-  MaxLineLength:
-    maxLineLength: 150
   UseCheckOrError:
     active: false
