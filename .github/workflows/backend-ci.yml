@@ -90,7 +90,7 @@ jobs:
   lint:
     name: Lint
     runs-on: ubuntu-latest
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -102,9 +102,34 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Grant execute permission for gradlew
+        working-directory: backend
+        run: chmod +x gradlew
+
       - name: Run ktlint
         working-directory: backend
         run: ./gradlew ktlintCheck --no-daemon
+
+      - name: Run detekt
+        working-directory: backend
+        run: ./gradlew detekt --no-daemon
+        continue-on-error: false
+
+      - name: Upload detekt report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: detekt-report
+          path: |
+            backend/build/reports/detekt/
+          retention-days: 14
+
+      - name: Upload detekt SARIF
+        if: always()
+        uses: github/codeql-action/upload-sarif@v2
+        with:
+          sarif_file: backend/build/reports/detekt/detekt.sarif
+        continue-on-error: true
 
   build:
     name: Build & Push
