@@ -24,29 +24,29 @@ class TestExecutionServiceImpl(
     private val stepResultRepository: TestStepResultR2dbcRepository,
     private val runMapper: TestRunMapper,
     private val stepResultMapper: TestStepResultMapper,
-    private val httpStepExecutor: HttpStepExecutor
+    private val httpStepExecutor: HttpStepExecutor,
 ) : TestExecutionService {
-
     private val logger = LoggerFactory.getLogger(TestExecutionServiceImpl::class.java)
 
     override suspend fun startRun(command: StartRunCommand): TestRun {
         logger.debug("Starting test run for scenario: {}", command.scenarioId.value)
 
         val now = Instant.now()
-        val run = TestRun(
-            id = TestRunId.generate(),
-            scenarioId = command.scenarioId,
-            qaPackageId = command.qaPackageId,
-            triggeredBy = command.triggeredBy,
-            baseUrl = command.baseUrl,
-            status = TestRunStatus.QUEUED,
-            stepResults = emptyList(),
-            environment = command.environment,
-            startedAt = now,
-            completedAt = null,
-            createdAt = now,
-            updatedAt = now
-        )
+        val run =
+            TestRun(
+                id = TestRunId.generate(),
+                scenarioId = command.scenarioId,
+                qaPackageId = command.qaPackageId,
+                triggeredBy = command.triggeredBy,
+                baseUrl = command.baseUrl,
+                status = TestRunStatus.QUEUED,
+                stepResults = emptyList(),
+                environment = command.environment,
+                startedAt = now,
+                completedAt = null,
+                createdAt = now,
+                updatedAt = now,
+            )
 
         val entity = runMapper.toEntityWithId(run, run.id.value)
         val savedEntity = runRepository.save(entity)
@@ -55,17 +55,21 @@ class TestExecutionServiceImpl(
         return runMapper.toDomain(savedEntity)
     }
 
-    override suspend fun executeRun(runId: TestRunId, scenario: TestScenario): TestRun {
+    override suspend fun executeRun(
+        runId: TestRunId,
+        scenario: TestScenario,
+    ): TestRun {
         logger.info("Executing test run: {} with {} steps", runId.value, scenario.stepCount)
 
         // Update status to RUNNING
         updateStatus(runId, TestRunStatus.RUNNING)
 
         val run = findById(runId) ?: throw TestRunNotFoundException(runId)
-        val context = ExecutionContext(
-            extractedValues = mutableMapOf(),
-            environment = run.environment
-        )
+        val context =
+            ExecutionContext(
+                extractedValues = mutableMapOf(),
+                environment = run.environment,
+            )
 
         val stepResults = mutableListOf<TestStepResult>()
         var hasError = false
@@ -97,18 +101,19 @@ class TestExecutionServiceImpl(
                         runId = runId,
                         step = step,
                         error = e,
-                        durationMs = 0
-                    )
+                        durationMs = 0,
+                    ),
                 )
             }
         }
 
         // Determine final status
-        val finalStatus = when {
-            hasError -> TestRunStatus.ERROR
-            hasFailed -> TestRunStatus.FAILED
-            else -> TestRunStatus.PASSED
-        }
+        val finalStatus =
+            when {
+                hasError -> TestRunStatus.ERROR
+                hasFailed -> TestRunStatus.FAILED
+                else -> TestRunStatus.PASSED
+            }
 
         // Mark run as completed
         val completedRun = markCompleted(runId, finalStatus)
@@ -118,7 +123,7 @@ class TestExecutionServiceImpl(
             runId.value,
             finalStatus,
             stepResults.count { it.passed },
-            stepResults.count { !it.passed }
+            stepResults.count { !it.passed },
         )
 
         return completedRun.copy(stepResults = stepResults)
@@ -128,7 +133,7 @@ class TestExecutionServiceImpl(
         runId: TestRunId,
         step: TestStep,
         baseUrl: String,
-        context: ExecutionContext
+        context: ExecutionContext,
     ): TestStepResult {
         logger.debug("Executing step {}: {} {}", step.index, step.method, step.endpoint)
 
@@ -149,12 +154,16 @@ class TestExecutionServiceImpl(
     override suspend fun findByIdWithResults(id: TestRunId): TestRun? {
         logger.debug("Finding test run with results by id: {}", id.value)
         val runEntity = runRepository.findById(id.value) ?: return null
-        val stepResults = stepResultRepository.findByRunIdOrderByStepIndex(id.value)
-            .map { stepResultMapper.toDomain(it) }
+        val stepResults =
+            stepResultRepository.findByRunIdOrderByStepIndex(id.value)
+                .map { stepResultMapper.toDomain(it) }
         return runMapper.toDomain(runEntity, stepResults)
     }
 
-    override suspend fun findAll(page: Int, size: Int): Page<TestRun> {
+    override suspend fun findAll(
+        page: Int,
+        size: Int,
+    ): Page<TestRun> {
         logger.debug("Finding all test runs, page: {}, size: {}", page, size)
 
         val offset = page * size
@@ -162,17 +171,18 @@ class TestExecutionServiceImpl(
         val totalElements = entities.size.toLong()
         val totalPages = if (size > 0) ((totalElements + size - 1) / size).toInt() else 0
 
-        val pagedEntities = entities
-            .drop(offset)
-            .take(size)
-            .map { runMapper.toDomain(it) }
+        val pagedEntities =
+            entities
+                .drop(offset)
+                .take(size)
+                .map { runMapper.toDomain(it) }
 
         return Page(
             content = pagedEntities,
             page = page,
             size = size,
             totalElements = totalElements,
-            totalPages = totalPages
+            totalPages = totalPages,
         )
     }
 
@@ -216,36 +226,46 @@ class TestExecutionServiceImpl(
         return runRepository.findRecentRuns(since).map { runMapper.toDomain(it) }
     }
 
-    override suspend fun updateStatus(id: TestRunId, status: TestRunStatus): TestRun {
+    override suspend fun updateStatus(
+        id: TestRunId,
+        status: TestRunStatus,
+    ): TestRun {
         logger.debug("Updating test run status: {} to {}", id.value, status)
 
-        val existing = runRepository.findById(id.value)
-            ?: throw TestRunNotFoundException(id)
+        val existing =
+            runRepository.findById(id.value)
+                ?: throw TestRunNotFoundException(id)
 
-        val updated = existing.copy(
-            status = status.name,
-            updatedAt = Instant.now()
-        )
+        val updated =
+            existing.copy(
+                status = status.name,
+                updatedAt = Instant.now(),
+            )
 
         val savedEntity = runRepository.save(updated)
         return runMapper.toDomain(savedEntity)
     }
 
-    override suspend fun markCompleted(id: TestRunId, status: TestRunStatus): TestRun {
+    override suspend fun markCompleted(
+        id: TestRunId,
+        status: TestRunStatus,
+    ): TestRun {
         logger.debug("Marking test run as completed: {} with status: {}", id.value, status)
 
         require(status in listOf(TestRunStatus.PASSED, TestRunStatus.FAILED, TestRunStatus.ERROR)) {
             "Completion status must be PASSED, FAILED, or ERROR"
         }
 
-        val existing = runRepository.findById(id.value)
-            ?: throw TestRunNotFoundException(id)
+        val existing =
+            runRepository.findById(id.value)
+                ?: throw TestRunNotFoundException(id)
 
-        val updated = existing.copy(
-            status = status.name,
-            completedAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
+        val updated =
+            existing.copy(
+                status = status.name,
+                completedAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
 
         val savedEntity = runRepository.save(updated)
         logger.info("Test run {} marked as {}", id.value, status)
@@ -255,18 +275,20 @@ class TestExecutionServiceImpl(
     override suspend fun cancel(id: TestRunId): TestRun {
         logger.debug("Cancelling test run: {}", id.value)
 
-        val existing = runRepository.findById(id.value)
-            ?: throw TestRunNotFoundException(id)
+        val existing =
+            runRepository.findById(id.value)
+                ?: throw TestRunNotFoundException(id)
 
-        if (existing.status in listOf("PASSED", "FAILED", "ERROR", "CANCELLED")) {
-            throw IllegalStateException("Cannot cancel a completed test run")
+        check(existing.status !in listOf("PASSED", "FAILED", "ERROR", "CANCELLED")) {
+            "Cannot cancel a completed test run"
         }
 
-        val updated = existing.copy(
-            status = TestRunStatus.CANCELLED.name,
-            completedAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
+        val updated =
+            existing.copy(
+                status = TestRunStatus.CANCELLED.name,
+                completedAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
 
         val savedEntity = runRepository.save(updated)
         logger.info("Test run {} cancelled", id.value)
