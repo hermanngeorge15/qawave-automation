@@ -17,7 +17,7 @@ jobs:
   test:
     name: Test
     runs-on: ubuntu-latest
-    
+
     services:
       postgres:
         image: postgres:16-alpine
@@ -32,7 +32,7 @@ jobs:
           --health-interval 10s
           --health-timeout 5s
           --health-retries 5
-      
+
       redis:
         image: redis:7-alpine
         ports:
@@ -72,9 +72,11 @@ jobs:
           cache: 'gradle'
 
       - name: Grant execute permission for gradlew
+        working-directory: backend
         run: chmod +x gradlew
 
       - name: Run tests
+        working-directory: backend
         run: ./gradlew test --no-daemon
         env:
           SPRING_R2DBC_URL: r2dbc:postgresql://localhost:5432/qawave_test
@@ -86,13 +88,14 @@ jobs:
 
       - name: Generate test report
         if: always()
+        working-directory: backend
         run: ./gradlew jacocoTestReport --no-daemon
         continue-on-error: true  # JaCoCo plugin not configured
 
       - name: Upload coverage to Codecov
         uses: codecov/codecov-action@v3
         with:
-          files: build/reports/jacoco/test/jacocoTestReport.xml
+          files: backend/build/reports/jacoco/test/jacocoTestReport.xml
           flags: backend
           fail_ci_if_error: false
 
@@ -101,7 +104,7 @@ jobs:
         uses: actions/upload-artifact@v4
         with:
           name: test-results
-          path: build/reports/tests/
+          path: backend/build/reports/tests/
 
   lint:
     name: Lint
@@ -119,9 +122,11 @@ jobs:
           cache: 'gradle'
 
       - name: Grant execute permission for gradlew
+        working-directory: backend
         run: chmod +x gradlew
 
       - name: Run ktlint
+        working-directory: backend
         run: ./gradlew ktlintCheck --no-daemon
         continue-on-error: true  # Pre-existing style violations
 
@@ -133,7 +138,7 @@ jobs:
     permissions:
       contents: read
       packages: write
-    
+
     steps:
       - name: Checkout
         uses: actions/checkout@v4
@@ -146,9 +151,11 @@ jobs:
           cache: 'gradle'
 
       - name: Grant execute permission for gradlew
+        working-directory: backend
         run: chmod +x gradlew
 
       - name: Build JAR
+        working-directory: backend
         run: ./gradlew bootJar --no-daemon
 
       - name: Set up Docker Buildx
@@ -176,7 +183,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: .
+          context: backend
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
@@ -188,7 +195,7 @@ jobs:
     needs: build
     runs-on: ubuntu-latest
     if: github.event_name != 'pull_request'
-    
+
     steps:
       - name: Run Trivy vulnerability scanner
         uses: aquasecurity/trivy-action@master
