@@ -1,0 +1,13 @@
+# K0s configuration with actual IPs
+k0s/k0sctl.yaml
+
+# Kubeconfig files
+kubeconfig*.yaml
+*.kubeconfig
+
+# Secrets
+*-secrets.yaml
+sealed-secrets/
+
+# Local testing
+.kube/
