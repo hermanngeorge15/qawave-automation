@@ -77,6 +77,9 @@ dependencies {
     // H2 for testing
     testRuntimeOnly("io.r2dbc:r2dbc-h2")
     testRuntimeOnly("com.h2database:h2")
+
+    // Kotlin test
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
 }
 
 kotlin {
