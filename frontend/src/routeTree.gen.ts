@@ -13,6 +13,7 @@ import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppPackagesRouteImport } from './routes/_app/packages'
+import { Route as AppRunsRunIdRouteImport } from './routes/_app/runs.$runId'
 import { Route as AppPackagesNewRouteImport } from './routes/_app/packages.new'
 import { Route as AppPackagesPackageIdRouteImport } from './routes/_app/packages.$packageId'
 
@@ -35,6 +36,11 @@ const AppPackagesRoute = AppPackagesRouteImport.update({
   path: '/packages',
   getParentRoute: () => AppRoute,
 } as any)
+const AppRunsRunIdRoute = AppRunsRunIdRouteImport.update({
+  id: '/runs/$runId',
+  path: '/runs/$runId',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPackagesNewRoute = AppPackagesNewRouteImport.update({
   id: '/new',
   path: '/new',
@@ -52,6 +58,7 @@ export interface FileRoutesByFullPath {
   '/settings': typeof AppSettingsRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/packages/new': typeof AppPackagesNewRoute
+  '/runs/$runId': typeof AppRunsRunIdRoute
 }
 export interface FileRoutesByTo {
   '/packages': typeof AppPackagesRouteWithChildren
@@ -59,6 +66,7 @@ export interface FileRoutesByTo {
   '/': typeof AppIndexRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/packages/new': typeof AppPackagesNewRoute
+  '/runs/$runId': typeof AppRunsRunIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -68,6 +76,7 @@ export interface FileRoutesById {
   '/_app/': typeof AppIndexRoute
   '/_app/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/_app/packages/new': typeof AppPackagesNewRoute
+  '/_app/runs/$runId': typeof AppRunsRunIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -77,8 +86,15 @@ export interface FileRouteTypes {
     | '/settings'
     | '/packages/$packageId'
     | '/packages/new'
+    | '/runs/$runId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/packages' | '/settings' | '/' | '/packages/$packageId' | '/packages/new'
+  to:
+    | '/packages'
+    | '/settings'
+    | '/'
+    | '/packages/$packageId'
+    | '/packages/new'
+    | '/runs/$runId'
   id:
     | '__root__'
     | '/_app'
@@ -87,6 +103,7 @@ export interface FileRouteTypes {
     | '/_app/'
     | '/_app/packages/$packageId'
     | '/_app/packages/new'
+    | '/_app/runs/$runId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -121,6 +138,13 @@ declare module '@tanstack/react-router' {
       path: '/packages'
       fullPath: '/packages'
       preLoaderRoute: typeof AppPackagesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/runs/$runId': {
+      id: '/_app/runs/$runId'
+      path: '/runs/$runId'
+      fullPath: '/runs/$runId'
+      preLoaderRoute: typeof AppRunsRunIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/packages/new': {
@@ -158,12 +182,14 @@ interface AppRouteChildren {
   AppPackagesRoute: typeof AppPackagesRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppRunsRunIdRoute: typeof AppRunsRunIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppPackagesRoute: AppPackagesRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppRunsRunIdRoute: AppRunsRunIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)
