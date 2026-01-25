@@ -1,0 +1,76 @@
+# Kafka Topics for QAWave
+# Managed by Strimzi Topic Operator
+#
+# Topics are automatically created when applied
+# Topic configuration can be updated by modifying these manifests
+#
+---
+# QA Package lifecycle events
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: qa-package-events
+  namespace: qawave
+  labels:
+    strimzi.io/cluster: qawave-kafka
+    app.kubernetes.io/part-of: qawave
+spec:
+  partitions: 3
+  replicas: 1  # Set to 3 for production
+  config:
+    retention.ms: 604800000  # 7 days
+    segment.bytes: 1073741824  # 1GB
+    cleanup.policy: delete
+    min.insync.replicas: 1
+---
+# Test run execution events
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: test-run-events
+  namespace: qawave
+  labels:
+    strimzi.io/cluster: qawave-kafka
+    app.kubernetes.io/part-of: qawave
+spec:
+  partitions: 6  # Higher partitions for parallel test execution
+  replicas: 1  # Set to 3 for production
+  config:
+    retention.ms: 259200000  # 3 days
+    segment.bytes: 1073741824
+    cleanup.policy: delete
+    min.insync.replicas: 1
+---
+# Scenario generation events
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: scenario-events
+  namespace: qawave
+  labels:
+    strimzi.io/cluster: qawave-kafka
+    app.kubernetes.io/part-of: qawave
+spec:
+  partitions: 3
+  replicas: 1
+  config:
+    retention.ms: 604800000  # 7 days
+    segment.bytes: 536870912  # 512MB
+    cleanup.policy: delete
+    min.insync.replicas: 1
+---
+# Dead letter queue for failed messages
+apiVersion: kafka.strimzi.io/v1beta2
+kind: KafkaTopic
+metadata:
+  name: dlq
+  namespace: qawave
+  labels:
+    strimzi.io/cluster: qawave-kafka
+    app.kubernetes.io/part-of: qawave
+spec:
+  partitions: 1
+  replicas: 1
+  config:
+    retention.ms: 2592000000  # 30 days
+    cleanup.policy: delete
