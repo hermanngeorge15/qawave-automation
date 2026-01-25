@@ -7,7 +7,6 @@ import org.springframework.web.bind.annotation.RestController
 @RestController
 @RequestMapping("/api")
 class HealthController {
-
     @GetMapping("/health")
     suspend fun health(): HealthResponse {
         return HealthResponse(status = "UP", service = "qawave")
@@ -16,5 +15,5 @@ class HealthController {
 
 data class HealthResponse(
     val status: String,
-    val service: String
+    val service: String,
 )

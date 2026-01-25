@@ -16,36 +16,26 @@ import java.util.UUID
 data class TestScenarioEntity(
     @Id
     val id: UUID? = null,
-
     @Column("suite_id")
     val suiteId: UUID? = null,
-
     @Column("qa_package_id")
     val qaPackageId: UUID? = null,
-
     @Column("name")
     val name: String,
-
     @Column("description")
     val description: String? = null,
-
     @Column("steps_json")
     val stepsJson: String,
-
     @Column("tags")
     val tags: String? = null, // Stored as JSON array
-
     @Column("source")
     val source: String,
-
     @Column("status")
     val status: String,
-
     @CreatedDate
     @Column("created_at")
     val createdAt: Instant = Instant.now(),
-
     @LastModifiedDate
     @Column("updated_at")
-    val updatedAt: Instant = Instant.now()
+    val updatedAt: Instant = Instant.now(),
 )

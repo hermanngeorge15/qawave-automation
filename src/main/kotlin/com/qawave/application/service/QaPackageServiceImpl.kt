@@ -25,9 +25,8 @@ class QaPackageServiceImpl(
     private val packageRepository: QaPackageR2dbcRepository,
     private val scenarioRepository: TestScenarioR2dbcRepository,
     private val runRepository: TestRunR2dbcRepository,
-    private val mapper: QaPackageMapper
+    private val mapper: QaPackageMapper,
 ) : QaPackageService {
-
     private val logger = LoggerFactory.getLogger(QaPackageServiceImpl::class.java)
 
     override suspend fun create(command: CreateQaPackageCommand): QaPackage {
@@ -35,21 +34,22 @@ class QaPackageServiceImpl(
 
         val specHash = command.specContent?.let { computeHash(it) }
 
-        val qaPackage = QaPackage(
-            id = QaPackageId.generate(),
-            name = command.name,
-            description = command.description,
-            specUrl = command.specUrl,
-            specContent = command.specContent,
-            specHash = specHash,
-            baseUrl = command.baseUrl,
-            requirements = command.requirements,
-            status = QaPackageStatus.REQUESTED,
-            config = command.config,
-            triggeredBy = command.triggeredBy,
-            createdAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
+        val qaPackage =
+            QaPackage(
+                id = QaPackageId.generate(),
+                name = command.name,
+                description = command.description,
+                specUrl = command.specUrl,
+                specContent = command.specContent,
+                specHash = specHash,
+                baseUrl = command.baseUrl,
+                requirements = command.requirements,
+                status = QaPackageStatus.REQUESTED,
+                config = command.config,
+                triggeredBy = command.triggeredBy,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
 
         val entity = mapper.toNewEntity(qaPackage)
         val savedEntity = packageRepository.save(entity)
@@ -86,22 +86,26 @@ class QaPackageServiceImpl(
         return qaPackage
     }
 
-    override suspend fun findAll(page: Int, size: Int): Page<QaPackage> {
+    override suspend fun findAll(
+        page: Int,
+        size: Int,
+    ): Page<QaPackage> {
         val allPackages = packageRepository.findAll().toList()
         val total = allPackages.size.toLong()
         val totalPages = ceil(total.toDouble() / size).toInt().coerceAtLeast(1)
 
-        val content = allPackages
-            .drop(page * size)
-            .take(size)
-            .map { mapper.toDomain(it) }
+        val content =
+            allPackages
+                .drop(page * size)
+                .take(size)
+                .map { mapper.toDomain(it) }
 
         return Page(
             content = content,
             page = page,
             size = size,
             totalElements = total,
-            totalPages = totalPages
+            totalPages = totalPages,
         )
     }
 
@@ -121,17 +125,22 @@ class QaPackageServiceImpl(
         return packageRepository.findRecentPackages(since).map { mapper.toDomain(it) }
     }
 
-    override suspend fun updateStatus(id: QaPackageId, status: QaPackageStatus): QaPackage {
-        val entity = packageRepository.findById(id.value)
-            ?: throw PackageNotFoundException(id)
+    override suspend fun updateStatus(
+        id: QaPackageId,
+        status: QaPackageStatus,
+    ): QaPackage {
+        val entity =
+            packageRepository.findById(id.value)
+                ?: throw PackageNotFoundException(id)
 
         val currentStatus = QaPackageStatus.valueOf(entity.status)
         validateStatusTransition(currentStatus, status)
 
-        val updatedEntity = entity.copy(
-            status = status.name,
-            updatedAt = Instant.now()
-        )
+        val updatedEntity =
+            entity.copy(
+                status = status.name,
+                updatedAt = Instant.now(),
+            )
 
         val saved = packageRepository.save(updatedEntity)
         logger.info("Updated package {} status: {} -> {}", id, currentStatus, status)
@@ -139,20 +148,25 @@ class QaPackageServiceImpl(
         return mapper.toDomain(saved)
     }
 
-    override suspend fun update(id: QaPackageId, command: UpdateQaPackageCommand): QaPackage {
-        val entity = packageRepository.findById(id.value)
-            ?: throw PackageNotFoundException(id)
+    override suspend fun update(
+        id: QaPackageId,
+        command: UpdateQaPackageCommand,
+    ): QaPackage {
+        val entity =
+            packageRepository.findById(id.value)
+                ?: throw PackageNotFoundException(id)
 
-        val updatedEntity = entity.copy(
-            name = command.name ?: entity.name,
-            description = command.description ?: entity.description,
-            specUrl = command.specUrl ?: entity.specUrl,
-            specContent = command.specContent ?: entity.specContent,
-            specHash = command.specContent?.let { computeHash(it) } ?: entity.specHash,
-            baseUrl = command.baseUrl ?: entity.baseUrl,
-            requirements = command.requirements ?: entity.requirements,
-            updatedAt = Instant.now()
-        )
+        val updatedEntity =
+            entity.copy(
+                name = command.name ?: entity.name,
+                description = command.description ?: entity.description,
+                specUrl = command.specUrl ?: entity.specUrl,
+                specContent = command.specContent ?: entity.specContent,
+                specHash = command.specContent?.let { computeHash(it) } ?: entity.specHash,
+                baseUrl = command.baseUrl ?: entity.baseUrl,
+                requirements = command.requirements ?: entity.requirements,
+                updatedAt = Instant.now(),
+            )
 
         val saved = packageRepository.save(updatedEntity)
         logger.info("Updated package: id={}", id)
@@ -160,14 +174,19 @@ class QaPackageServiceImpl(
         return mapper.toDomain(saved)
     }
 
-    override suspend fun setCoverage(id: QaPackageId, coverage: CoverageReport): QaPackage {
-        val entity = packageRepository.findById(id.value)
-            ?: throw PackageNotFoundException(id)
+    override suspend fun setCoverage(
+        id: QaPackageId,
+        coverage: CoverageReport,
+    ): QaPackage {
+        val entity =
+            packageRepository.findById(id.value)
+                ?: throw PackageNotFoundException(id)
 
-        val qaPackage = mapper.toDomain(entity).copy(
-            coverage = coverage,
-            updatedAt = Instant.now()
-        )
+        val qaPackage =
+            mapper.toDomain(entity).copy(
+                coverage = coverage,
+                updatedAt = Instant.now(),
+            )
 
         val saved = packageRepository.save(mapper.toEntity(qaPackage))
         logger.info("Set coverage for package: id={}, coverage={}%", id, coverage.coveragePercentage)
@@ -175,14 +194,19 @@ class QaPackageServiceImpl(
         return mapper.toDomain(saved)
     }
 
-    override suspend fun setQaSummary(id: QaPackageId, summary: QaSummary): QaPackage {
-        val entity = packageRepository.findById(id.value)
-            ?: throw PackageNotFoundException(id)
+    override suspend fun setQaSummary(
+        id: QaPackageId,
+        summary: QaSummary,
+    ): QaPackage {
+        val entity =
+            packageRepository.findById(id.value)
+                ?: throw PackageNotFoundException(id)
 
-        val qaPackage = mapper.toDomain(entity).copy(
-            qaSummary = summary,
-            updatedAt = Instant.now()
-        )
+        val qaPackage =
+            mapper.toDomain(entity).copy(
+                qaSummary = summary,
+                updatedAt = Instant.now(),
+            )
 
         val saved = packageRepository.save(mapper.toEntity(qaPackage))
         logger.info("Set QA summary for package: id={}, verdict={}", id, summary.overallVerdict)
@@ -191,13 +215,15 @@ class QaPackageServiceImpl(
     }
 
     override suspend fun markStarted(id: QaPackageId): QaPackage {
-        val entity = packageRepository.findById(id.value)
-            ?: throw PackageNotFoundException(id)
+        val entity =
+            packageRepository.findById(id.value)
+                ?: throw PackageNotFoundException(id)
 
-        val updatedEntity = entity.copy(
-            startedAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
+        val updatedEntity =
+            entity.copy(
+                startedAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
 
         val saved = packageRepository.save(updatedEntity)
         logger.info("Marked package as started: id={}", id)
@@ -206,14 +232,16 @@ class QaPackageServiceImpl(
     }
 
     override suspend fun markCompleted(id: QaPackageId): QaPackage {
-        val entity = packageRepository.findById(id.value)
-            ?: throw PackageNotFoundException(id)
+        val entity =
+            packageRepository.findById(id.value)
+                ?: throw PackageNotFoundException(id)
 
-        val updatedEntity = entity.copy(
-            status = QaPackageStatus.COMPLETE.name,
-            completedAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
+        val updatedEntity =
+            entity.copy(
+                status = QaPackageStatus.COMPLETE.name,
+                completedAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
 
         val saved = packageRepository.save(updatedEntity)
         logger.info("Marked package as completed: id={}", id)
@@ -221,19 +249,24 @@ class QaPackageServiceImpl(
         return mapper.toDomain(saved)
     }
 
-    override suspend fun markFailed(id: QaPackageId, status: QaPackageStatus): QaPackage {
+    override suspend fun markFailed(
+        id: QaPackageId,
+        status: QaPackageStatus,
+    ): QaPackage {
         require(status.name.startsWith("FAILED_") || status == QaPackageStatus.CANCELLED) {
             "Status must be a failure status"
         }
 
-        val entity = packageRepository.findById(id.value)
-            ?: throw PackageNotFoundException(id)
+        val entity =
+            packageRepository.findById(id.value)
+                ?: throw PackageNotFoundException(id)
 
-        val updatedEntity = entity.copy(
-            status = status.name,
-            completedAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
+        val updatedEntity =
+            entity.copy(
+                status = status.name,
+                completedAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
 
         val saved = packageRepository.save(updatedEntity)
         logger.info("Marked package as failed: id={}, status={}", id, status)
@@ -262,42 +295,53 @@ class QaPackageServiceImpl(
         return packageRepository.count()
     }
 
-    private fun validateStatusTransition(current: QaPackageStatus, target: QaPackageStatus) {
-        val validTransitions = mapOf(
-            QaPackageStatus.REQUESTED to setOf(
-                QaPackageStatus.SPEC_FETCHED,
-                QaPackageStatus.FAILED_SPEC_FETCH,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.SPEC_FETCHED to setOf(
-                QaPackageStatus.AI_SUCCESS,
-                QaPackageStatus.FAILED_GENERATION,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.AI_SUCCESS to setOf(
-                QaPackageStatus.EXECUTION_IN_PROGRESS,
-                QaPackageStatus.FAILED_EXECUTION,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.EXECUTION_IN_PROGRESS to setOf(
-                QaPackageStatus.EXECUTION_COMPLETE,
-                QaPackageStatus.FAILED_EXECUTION,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.EXECUTION_COMPLETE to setOf(
-                QaPackageStatus.QA_EVAL_IN_PROGRESS,
-                QaPackageStatus.COMPLETE,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.QA_EVAL_IN_PROGRESS to setOf(
-                QaPackageStatus.QA_EVAL_DONE,
-                QaPackageStatus.COMPLETE,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.QA_EVAL_DONE to setOf(
-                QaPackageStatus.COMPLETE
+    private fun validateStatusTransition(
+        current: QaPackageStatus,
+        target: QaPackageStatus,
+    ) {
+        val validTransitions =
+            mapOf(
+                QaPackageStatus.REQUESTED to
+                    setOf(
+                        QaPackageStatus.SPEC_FETCHED,
+                        QaPackageStatus.FAILED_SPEC_FETCH,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.SPEC_FETCHED to
+                    setOf(
+                        QaPackageStatus.AI_SUCCESS,
+                        QaPackageStatus.FAILED_GENERATION,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.AI_SUCCESS to
+                    setOf(
+                        QaPackageStatus.EXECUTION_IN_PROGRESS,
+                        QaPackageStatus.FAILED_EXECUTION,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.EXECUTION_IN_PROGRESS to
+                    setOf(
+                        QaPackageStatus.EXECUTION_COMPLETE,
+                        QaPackageStatus.FAILED_EXECUTION,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.EXECUTION_COMPLETE to
+                    setOf(
+                        QaPackageStatus.QA_EVAL_IN_PROGRESS,
+                        QaPackageStatus.COMPLETE,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.QA_EVAL_IN_PROGRESS to
+                    setOf(
+                        QaPackageStatus.QA_EVAL_DONE,
+                        QaPackageStatus.COMPLETE,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.QA_EVAL_DONE to
+                    setOf(
+                        QaPackageStatus.COMPLETE,
+                    ),
             )
-        )
 
         val allowed = validTransitions[current] ?: emptySet()
         if (target !in allowed && current != target) {
@@ -322,5 +366,5 @@ class PackageNotFoundException(id: QaPackageId) : RuntimeException("Package not 
  */
 class InvalidStatusTransitionException(
     current: QaPackageStatus,
-    target: QaPackageStatus
+    target: QaPackageStatus,
 ) : RuntimeException("Invalid status transition: $current -> $target")

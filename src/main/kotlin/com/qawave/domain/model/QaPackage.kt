@@ -26,7 +26,7 @@ data class QaPackage(
     val startedAt: Instant? = null,
     val completedAt: Instant? = null,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
 ) {
     init {
         require(name.isNotBlank()) { "Package name cannot be blank" }
@@ -38,21 +38,26 @@ data class QaPackage(
      * Total duration of the package run in milliseconds.
      */
     val durationMs: Long?
-        get() = if (startedAt != null && completedAt != null) {
-            completedAt.toEpochMilli() - startedAt.toEpochMilli()
-        } else null
+        get() =
+            if (startedAt != null && completedAt != null) {
+                completedAt.toEpochMilli() - startedAt.toEpochMilli()
+            } else {
+                null
+            }
 
     /**
      * Whether the package run has completed.
      */
     val isComplete: Boolean
-        get() = status in listOf(
-            QaPackageStatus.COMPLETE,
-            QaPackageStatus.FAILED_SPEC_FETCH,
-            QaPackageStatus.FAILED_GENERATION,
-            QaPackageStatus.FAILED_EXECUTION,
-            QaPackageStatus.CANCELLED
-        )
+        get() =
+            status in
+                listOf(
+                    QaPackageStatus.COMPLETE,
+                    QaPackageStatus.FAILED_SPEC_FETCH,
+                    QaPackageStatus.FAILED_GENERATION,
+                    QaPackageStatus.FAILED_EXECUTION,
+                    QaPackageStatus.CANCELLED,
+                )
 
     /**
      * Total number of scenarios in this package.
@@ -148,7 +153,7 @@ enum class QaPackageStatus {
     /**
      * Package run was cancelled.
      */
-    CANCELLED
+    CANCELLED,
 }
 
 /**
@@ -162,7 +167,7 @@ data class QaPackageConfig(
     val stopOnFirstFailure: Boolean = false,
     val includeSecurityTests: Boolean = false,
     val aiProvider: String = "openai",
-    val aiModel: String = "gpt-4o-mini"
+    val aiModel: String = "gpt-4o-mini",
 )
 
 /**
@@ -174,7 +179,7 @@ data class CoverageReport(
     val coveragePercentage: Double,
     val operationDetails: List<OperationCoverage> = emptyList(),
     val gaps: List<CoverageGap> = emptyList(),
-    val generatedAt: Instant
+    val generatedAt: Instant,
 ) {
     /**
      * Number of uncovered operations.
@@ -192,7 +197,7 @@ data class OperationCoverage(
     val path: String,
     val status: OperationCoverageStatus,
     val scenarioIds: List<ScenarioId> = emptyList(),
-    val lastTestedAt: Instant? = null
+    val lastTestedAt: Instant? = null,
 )
 
 /**
@@ -212,7 +217,7 @@ enum class OperationCoverageStatus {
     /**
      * Operation has no test scenarios.
      */
-    UNTESTED
+    UNTESTED,
 }
 
 /**
@@ -222,7 +227,7 @@ data class CoverageGap(
     val type: CoverageGapType,
     val operationId: String?,
     val description: String,
-    val severity: GapSeverity
+    val severity: GapSeverity,
 )
 
 /**
@@ -233,14 +238,17 @@ enum class CoverageGapType {
     FAILING_OPERATION,
     UNRESOLVED_PLACEHOLDER,
     WEAK_ASSERTIONS,
-    MISSING_ERROR_CASES
+    MISSING_ERROR_CASES,
 }
 
 /**
  * Severity of a coverage gap.
  */
 enum class GapSeverity {
-    LOW, MEDIUM, HIGH, CRITICAL
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL,
 }
 
 /**
@@ -255,7 +263,7 @@ data class QaSummary(
     val keyFindings: List<Finding> = emptyList(),
     val recommendations: List<Recommendation> = emptyList(),
     val riskAssessment: RiskAssessment? = null,
-    val generatedAt: Instant
+    val generatedAt: Instant,
 )
 
 /**
@@ -266,7 +274,7 @@ enum class QaVerdict {
     PASS_WITH_WARNINGS,
     FAIL,
     ERROR,
-    INCONCLUSIVE
+    INCONCLUSIVE,
 }
 
 /**
@@ -277,7 +285,7 @@ data class Finding(
     val severity: FindingSeverity,
     val title: String,
     val description: String,
-    val affectedScenarios: List<ScenarioId> = emptyList()
+    val affectedScenarios: List<ScenarioId> = emptyList(),
 )
 
 /**
@@ -289,14 +297,18 @@ enum class FindingType {
     PERFORMANCE_ISSUE,
     SECURITY_CONCERN,
     DATA_INCONSISTENCY,
-    API_CONTRACT_VIOLATION
+    API_CONTRACT_VIOLATION,
 }
 
 /**
  * Severity of a finding.
  */
 enum class FindingSeverity {
-    INFO, LOW, MEDIUM, HIGH, CRITICAL
+    INFO,
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL,
 }
 
 /**
@@ -306,14 +318,17 @@ data class Recommendation(
     val priority: RecommendationPriority,
     val title: String,
     val description: String,
-    val actionItems: List<String> = emptyList()
+    val actionItems: List<String> = emptyList(),
 )
 
 /**
  * Priority of a recommendation.
  */
 enum class RecommendationPriority {
-    LOW, MEDIUM, HIGH, IMMEDIATE
+    LOW,
+    MEDIUM,
+    HIGH,
+    IMMEDIATE,
 }
 
 /**
@@ -324,12 +339,15 @@ data class RiskAssessment(
     val qualityScore: Int,
     val stabilityScore: Int,
     val securityScore: Int?,
-    val riskFactors: List<String> = emptyList()
+    val riskFactors: List<String> = emptyList(),
 )
 
 /**
  * Risk levels.
  */
 enum class RiskLevel {
-    LOW, MEDIUM, HIGH, CRITICAL
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL,
 }

@@ -16,7 +16,7 @@ data class TestSuite(
     val tags: Set<String> = emptySet(),
     val scenarios: List<TestScenario> = emptyList(),
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
 ) {
     init {
         require(name.isNotBlank()) { "Suite name cannot be blank" }

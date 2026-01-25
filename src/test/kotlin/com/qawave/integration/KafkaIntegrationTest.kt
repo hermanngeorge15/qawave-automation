@@ -9,7 +9,6 @@ import org.apache.kafka.common.serialization.StringDeserializer
 import org.junit.jupiter.api.Test
 import org.springframework.beans.factory.annotation.Autowired
 import org.springframework.boot.test.context.SpringBootTest
-import org.springframework.kafka.support.serializer.JsonDeserializer
 import org.springframework.test.context.DynamicPropertyRegistry
 import org.springframework.test.context.DynamicPropertySource
 import org.testcontainers.containers.KafkaContainer
@@ -28,7 +27,6 @@ import kotlin.test.assertTrue
 @SpringBootTest
 @Testcontainers
 class KafkaIntegrationTest {
-
     companion object {
         @Container
         @JvmStatic
@@ -52,101 +50,109 @@ class KafkaIntegrationTest {
     private lateinit var eventPublisher: EventPublisher
 
     @Test
-    fun `should publish QaPackageCreatedEvent to qa-package-events topic`() = runBlocking {
-        val event = QaPackageCreatedEvent(
-            aggregateId = UUID.randomUUID().toString(),
-            packageName = "Test Package",
-            triggeredBy = "test-user",
-            baseUrl = "https://api.example.com",
-            hasSpecUrl = true,
-            hasSpecContent = false
-        )
+    fun `should publish QaPackageCreatedEvent to qa-package-events topic`() =
+        runBlocking {
+            val event =
+                QaPackageCreatedEvent(
+                    aggregateId = UUID.randomUUID().toString(),
+                    packageName = "Test Package",
+                    triggeredBy = "test-user",
+                    baseUrl = "https://api.example.com",
+                    hasSpecUrl = true,
+                    hasSpecContent = false,
+                )
 
-        // Publish event
-        eventPublisher.publish(event)
+            // Publish event
+            eventPublisher.publish(event)
 
-        // Give some time for the message to be sent
-        delay(1000)
+            // Give some time for the message to be sent
+            delay(1000)
 
-        // Verify by consuming from topic
-        val consumer = createConsumer()
-        consumer.subscribe(listOf(KafkaTopics.QA_PACKAGE_EVENTS))
+            // Verify by consuming from topic
+            val consumer = createConsumer()
+            consumer.subscribe(listOf(KafkaTopics.QA_PACKAGE_EVENTS))
 
-        val records = consumer.poll(Duration.ofSeconds(10))
-        consumer.close()
+            val records = consumer.poll(Duration.ofSeconds(10))
+            consumer.close()
 
-        assertTrue(records.count() >= 1, "Should have received at least 1 record")
+            assertTrue(records.count() >= 1, "Should have received at least 1 record")
 
-        val receivedEvent = records.first()
-        assertEquals(event.aggregateId, receivedEvent.key())
-    }
-
-    @Test
-    fun `should publish TestRunStartedEvent to test-run-events topic`() = runBlocking {
-        val event = TestRunStartedEvent(
-            aggregateId = UUID.randomUUID().toString(),
-            packageId = UUID.randomUUID().toString(),
-            scenarioId = UUID.randomUUID().toString(),
-            runNumber = 1
-        )
-
-        eventPublisher.publish(event)
-        delay(1000)
-
-        val consumer = createConsumer()
-        consumer.subscribe(listOf(KafkaTopics.TEST_RUN_EVENTS))
-
-        val records = consumer.poll(Duration.ofSeconds(10))
-        consumer.close()
-
-        assertTrue(records.count() >= 1, "Should have received at least 1 record")
-    }
+            val receivedEvent = records.first()
+            assertEquals(event.aggregateId, receivedEvent.key())
+        }
 
     @Test
-    fun `should publish ScenarioGeneratedEvent to scenario-events topic`() = runBlocking {
-        val event = ScenarioGeneratedEvent(
-            aggregateId = UUID.randomUUID().toString(),
-            packageId = UUID.randomUUID().toString(),
-            scenarioName = "Test Scenario",
-            stepsCount = 5,
-            priority = "HIGH"
-        )
+    fun `should publish TestRunStartedEvent to test-run-events topic`() =
+        runBlocking {
+            val event =
+                TestRunStartedEvent(
+                    aggregateId = UUID.randomUUID().toString(),
+                    packageId = UUID.randomUUID().toString(),
+                    scenarioId = UUID.randomUUID().toString(),
+                    runNumber = 1,
+                )
 
-        eventPublisher.publish(event)
-        delay(1000)
+            eventPublisher.publish(event)
+            delay(1000)
 
-        val consumer = createConsumer()
-        consumer.subscribe(listOf(KafkaTopics.SCENARIO_EVENTS))
+            val consumer = createConsumer()
+            consumer.subscribe(listOf(KafkaTopics.TEST_RUN_EVENTS))
 
-        val records = consumer.poll(Duration.ofSeconds(10))
-        consumer.close()
+            val records = consumer.poll(Duration.ofSeconds(10))
+            consumer.close()
 
-        assertTrue(records.count() >= 1, "Should have received at least 1 record")
-    }
+            assertTrue(records.count() >= 1, "Should have received at least 1 record")
+        }
 
     @Test
-    fun `should publish AiGenerationCompletedEvent to ai-generation-events topic`() = runBlocking {
-        val event = AiGenerationCompletedEvent(
-            aggregateId = UUID.randomUUID().toString(),
-            provider = "openai",
-            model = "gpt-4o-mini",
-            success = true,
-            scenariosGenerated = 10,
-            tokensUsed = 5000,
-            durationMs = 3500
-        )
+    fun `should publish ScenarioGeneratedEvent to scenario-events topic`() =
+        runBlocking {
+            val event =
+                ScenarioGeneratedEvent(
+                    aggregateId = UUID.randomUUID().toString(),
+                    packageId = UUID.randomUUID().toString(),
+                    scenarioName = "Test Scenario",
+                    stepsCount = 5,
+                    priority = "HIGH",
+                )
 
-        eventPublisher.publish(event)
-        delay(1000)
+            eventPublisher.publish(event)
+            delay(1000)
 
-        val consumer = createConsumer()
-        consumer.subscribe(listOf(KafkaTopics.AI_GENERATION_EVENTS))
+            val consumer = createConsumer()
+            consumer.subscribe(listOf(KafkaTopics.SCENARIO_EVENTS))
 
-        val records = consumer.poll(Duration.ofSeconds(10))
-        consumer.close()
+            val records = consumer.poll(Duration.ofSeconds(10))
+            consumer.close()
 
-        assertTrue(records.count() >= 1, "Should have received at least 1 record")
-    }
+            assertTrue(records.count() >= 1, "Should have received at least 1 record")
+        }
+
+    @Test
+    fun `should publish AiGenerationCompletedEvent to ai-generation-events topic`() =
+        runBlocking {
+            val event =
+                AiGenerationCompletedEvent(
+                    aggregateId = UUID.randomUUID().toString(),
+                    provider = "openai",
+                    model = "gpt-4o-mini",
+                    success = true,
+                    scenariosGenerated = 10,
+                    tokensUsed = 5000,
+                    durationMs = 3500,
+                )
+
+            eventPublisher.publish(event)
+            delay(1000)
+
+            val consumer = createConsumer()
+            consumer.subscribe(listOf(KafkaTopics.AI_GENERATION_EVENTS))
+
+            val records = consumer.poll(Duration.ofSeconds(10))
+            consumer.close()
+
+            assertTrue(records.count() >= 1, "Should have received at least 1 record")
+        }
 
     @Test
     fun `should route events to correct topics based on event type`() {
@@ -159,11 +165,12 @@ class KafkaIntegrationTest {
 
     @Test
     fun `domain events should have required fields`() {
-        val event = QaPackageStatusChangedEvent(
-            aggregateId = "test-id",
-            previousStatus = "REQUESTED",
-            newStatus = "SPEC_FETCHED"
-        )
+        val event =
+            QaPackageStatusChangedEvent(
+                aggregateId = "test-id",
+                previousStatus = "REQUESTED",
+                newStatus = "SPEC_FETCHED",
+            )
 
         assertTrue(event.eventId.isNotEmpty())
         assertTrue(event.timestamp <= Instant.now())
@@ -172,13 +179,14 @@ class KafkaIntegrationTest {
     }
 
     private fun createConsumer(): KafkaConsumer<String, String> {
-        val props = mapOf(
-            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to kafkaContainer.bootstrapServers,
-            ConsumerConfig.GROUP_ID_CONFIG to "test-group-${UUID.randomUUID()}",
-            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest",
-            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java.name,
-            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java.name
-        )
+        val props =
+            mapOf(
+                ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to kafkaContainer.bootstrapServers,
+                ConsumerConfig.GROUP_ID_CONFIG to "test-group-${UUID.randomUUID()}",
+                ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest",
+                ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java.name,
+                ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java.name,
+            )
         return KafkaConsumer(props)
     }
 }

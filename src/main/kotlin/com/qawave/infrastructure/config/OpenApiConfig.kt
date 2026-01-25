@@ -15,7 +15,6 @@ import org.springframework.context.annotation.Configuration
  */
 @Configuration
 class OpenApiConfig {
-
     @Value("\${server.port:8080}")
     private var serverPort: Int = 8080
 
@@ -23,34 +22,39 @@ class OpenApiConfig {
     fun customOpenAPI(): OpenAPI {
         return OpenAPI()
             .info(apiInfo())
-            .servers(listOf(
-                Server()
-                    .url("http://localhost:$serverPort")
-                    .description("Local development server"),
-                Server()
-                    .url("https://api.qawave.com")
-                    .description("Production server")
-            ))
-            .tags(listOf(
-                Tag()
-                    .name("QA Packages")
-                    .description("Operations for managing QA test packages"),
-                Tag()
-                    .name("Test Scenarios")
-                    .description("Operations for managing test scenarios"),
-                Tag()
-                    .name("Test Runs")
-                    .description("Operations for managing test execution runs"),
-                Tag()
-                    .name("Health")
-                    .description("Health and status endpoints")
-            ))
+            .servers(
+                listOf(
+                    Server()
+                        .url("http://localhost:$serverPort")
+                        .description("Local development server"),
+                    Server()
+                        .url("https://api.qawave.com")
+                        .description("Production server"),
+                ),
+            )
+            .tags(
+                listOf(
+                    Tag()
+                        .name("QA Packages")
+                        .description("Operations for managing QA test packages"),
+                    Tag()
+                        .name("Test Scenarios")
+                        .description("Operations for managing test scenarios"),
+                    Tag()
+                        .name("Test Runs")
+                        .description("Operations for managing test execution runs"),
+                    Tag()
+                        .name("Health")
+                        .description("Health and status endpoints"),
+                ),
+            )
     }
 
     private fun apiInfo(): Info {
         return Info()
             .title("QAWave API")
-            .description("""
+            .description(
+                """
                 QAWave is an AI-powered QA automation platform that acts as a virtual QA engineering team for backend APIs.
 
                 ## Features
@@ -66,14 +70,19 @@ class OpenApiConfig {
                 The API implements rate limiting to ensure fair usage. Current limits:
                 - 100 requests per minute per API key
                 - 10 concurrent AI generation requests
-            """.trimIndent())
+                """.trimIndent(),
+            )
             .version("1.0.0")
-            .contact(Contact()
-                .name("QAWave Team")
-                .email("support@qawave.com")
-                .url("https://qawave.com"))
-            .license(License()
-                .name("Proprietary")
-                .url("https://qawave.com/terms"))
+            .contact(
+                Contact()
+                    .name("QAWave Team")
+                    .email("support@qawave.com")
+                    .url("https://qawave.com"),
+            )
+            .license(
+                License()
+                    .name("Proprietary")
+                    .url("https://qawave.com/terms"),
+            )
     }
 }

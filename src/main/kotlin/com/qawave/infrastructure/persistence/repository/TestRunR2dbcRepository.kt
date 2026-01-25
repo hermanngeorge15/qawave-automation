@@ -14,7 +14,6 @@ import java.util.UUID
  */
 @Repository
 interface TestRunR2dbcRepository : CoroutineCrudRepository<TestRunEntity, UUID> {
-
     /**
      * Find runs for a specific scenario.
      */
@@ -60,11 +59,13 @@ interface TestRunR2dbcRepository : CoroutineCrudRepository<TestRunEntity, UUID> 
     /**
      * Find incomplete runs (not in terminal status).
      */
-    @Query("""
+    @Query(
+        """
         SELECT * FROM test_runs
         WHERE status NOT IN ('PASSED', 'FAILED', 'ERROR', 'CANCELLED')
         ORDER BY created_at DESC
-    """)
+    """,
+    )
     fun findIncompleteRuns(): Flow<TestRunEntity>
 
     /**

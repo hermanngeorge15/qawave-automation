@@ -5,6 +5,8 @@ plugins {
     id("io.spring.dependency-management") version "1.1.4"
     kotlin("jvm") version "1.9.22"
     kotlin("plugin.spring") version "1.9.22"
+    id("org.jlleitschuh.gradle.ktlint") version "12.1.0"
+    id("io.gitlab.arturbosch.detekt") version "1.23.5"
 }
 
 group = "com.qawave"
@@ -94,4 +96,17 @@ kotlin {
 
 tasks.withType<Test> {
     useJUnitPlatform()
+}
+
+ktlint {
+    version.set("1.1.1")
+}
+
+detekt {
+    buildUponDefaultConfig = true
+    config.setFrom(files("$projectDir/detekt.yml"))
+}
+
+tasks.withType<io.gitlab.arturbosch.detekt.Detekt>().configureEach {
+    jvmTarget = "21"
 }

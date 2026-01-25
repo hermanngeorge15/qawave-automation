@@ -7,7 +7,6 @@ import org.springframework.context.annotation.Configuration
 import org.springframework.context.annotation.Primary
 import org.springframework.data.redis.connection.ReactiveRedisConnectionFactory
 import org.springframework.data.redis.connection.RedisStandaloneConfiguration
-import org.springframework.data.redis.connection.lettuce.LettuceClientConfiguration
 import org.springframework.data.redis.connection.lettuce.LettuceConnectionFactory
 import org.springframework.data.redis.connection.lettuce.LettucePoolingClientConfiguration
 import org.springframework.data.redis.core.ReactiveRedisTemplate
@@ -22,9 +21,8 @@ import java.time.Duration
  */
 @Configuration
 class RedisConfig(
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) {
-
     @Value("\${spring.data.redis.host:localhost}")
     private lateinit var redisHost: String
 
@@ -52,16 +50,18 @@ class RedisConfig(
     @Bean
     @Primary
     fun reactiveRedisConnectionFactory(): ReactiveRedisConnectionFactory {
-        val serverConfig = RedisStandaloneConfiguration(redisHost, redisPort).apply {
-            if (redisPassword.isNotBlank()) {
-                setPassword(redisPassword)
+        val serverConfig =
+            RedisStandaloneConfiguration(redisHost, redisPort).apply {
+                if (redisPassword.isNotBlank()) {
+                    setPassword(redisPassword)
+                }
             }
-        }
 
-        val clientConfig = LettucePoolingClientConfiguration.builder()
-            .commandTimeout(Duration.ofMillis(commandTimeout))
-            .poolConfig(buildPoolConfig())
-            .build()
+        val clientConfig =
+            LettucePoolingClientConfiguration.builder()
+                .commandTimeout(Duration.ofMillis(commandTimeout))
+                .poolConfig(buildPoolConfig())
+                .build()
 
         return LettuceConnectionFactory(serverConfig, clientConfig)
     }
@@ -70,18 +70,17 @@ class RedisConfig(
      * Creates a reactive Redis template with JSON serialization.
      */
     @Bean
-    fun reactiveRedisTemplate(
-        connectionFactory: ReactiveRedisConnectionFactory
-    ): ReactiveRedisTemplate<String, Any> {
+    fun reactiveRedisTemplate(connectionFactory: ReactiveRedisConnectionFactory): ReactiveRedisTemplate<String, Any> {
         val keySerializer = StringRedisSerializer()
         val valueSerializer = Jackson2JsonRedisSerializer(objectMapper, Any::class.java)
 
-        val serializationContext = RedisSerializationContext.newSerializationContext<String, Any>()
-            .key(keySerializer)
-            .value(valueSerializer)
-            .hashKey(keySerializer)
-            .hashValue(valueSerializer)
-            .build()
+        val serializationContext =
+            RedisSerializationContext.newSerializationContext<String, Any>()
+                .key(keySerializer)
+                .value(valueSerializer)
+                .hashKey(keySerializer)
+                .hashValue(valueSerializer)
+                .build()
 
         return ReactiveRedisTemplate(connectionFactory, serializationContext)
     }
@@ -91,16 +90,17 @@ class RedisConfig(
      */
     @Bean
     fun reactiveStringRedisTemplate(
-        connectionFactory: ReactiveRedisConnectionFactory
+        connectionFactory: ReactiveRedisConnectionFactory,
     ): ReactiveRedisTemplate<String, String> {
         val serializer = StringRedisSerializer()
 
-        val serializationContext = RedisSerializationContext.newSerializationContext<String, String>()
-            .key(serializer)
-            .value(serializer)
-            .hashKey(serializer)
-            .hashValue(serializer)
-            .build()
+        val serializationContext =
+            RedisSerializationContext.newSerializationContext<String, String>()
+                .key(serializer)
+                .value(serializer)
+                .hashKey(serializer)
+                .hashValue(serializer)
+                .build()
 
         return ReactiveRedisTemplate(connectionFactory, serializationContext)
     }

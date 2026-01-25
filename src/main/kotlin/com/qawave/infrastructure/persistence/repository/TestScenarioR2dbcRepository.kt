@@ -14,7 +14,6 @@ import java.util.UUID
  */
 @Repository
 interface TestScenarioR2dbcRepository : CoroutineCrudRepository<TestScenarioEntity, UUID> {
-
     /**
      * Find scenarios belonging to a QA package.
      */

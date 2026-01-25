@@ -9,7 +9,6 @@ import kotlin.test.assertFalse
 import kotlin.test.assertTrue
 
 class TestRunTest {
-
     @Test
     fun `test run requires non-blank baseUrl`() {
         assertThrows<IllegalArgumentException> {
@@ -47,13 +46,15 @@ class TestRunTest {
 
     @Test
     fun `passedSteps and failedSteps count correctly`() {
-        val run = createTestRun(
-            stepResults = listOf(
-                createStepResult(passed = true),
-                createStepResult(passed = true),
-                createStepResult(passed = false)
+        val run =
+            createTestRun(
+                stepResults =
+                    listOf(
+                        createStepResult(passed = true),
+                        createStepResult(passed = true),
+                        createStepResult(passed = false),
+                    ),
             )
-        )
         assertEquals(2, run.passedSteps)
         assertEquals(1, run.failedSteps)
         assertEquals(3, run.executedSteps)
@@ -61,14 +62,16 @@ class TestRunTest {
 
     @Test
     fun `passRate calculates correctly`() {
-        val run = createTestRun(
-            stepResults = listOf(
-                createStepResult(passed = true),
-                createStepResult(passed = true),
-                createStepResult(passed = false),
-                createStepResult(passed = false)
+        val run =
+            createTestRun(
+                stepResults =
+                    listOf(
+                        createStepResult(passed = true),
+                        createStepResult(passed = true),
+                        createStepResult(passed = false),
+                        createStepResult(passed = false),
+                    ),
             )
-        )
         assertEquals(50.0, run.passRate)
     }
 
@@ -83,7 +86,7 @@ class TestRunTest {
         status: TestRunStatus = TestRunStatus.RUNNING,
         stepResults: List<TestStepResult> = emptyList(),
         startedAt: Instant = Instant.now(),
-        completedAt: Instant? = null
+        completedAt: Instant? = null,
     ): TestRun {
         val runId = TestRunId.generate()
         return TestRun(
@@ -97,7 +100,7 @@ class TestRunTest {
             startedAt = startedAt,
             completedAt = completedAt,
             createdAt = Instant.now(),
-            updatedAt = Instant.now()
+            updatedAt = Instant.now(),
         )
     }
 
@@ -109,7 +112,7 @@ class TestRunTest {
             actualStatus = if (passed) 200 else 500,
             passed = passed,
             durationMs = 100,
-            executedAt = Instant.now()
+            executedAt = Instant.now(),
         )
     }
 }

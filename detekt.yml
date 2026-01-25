@@ -1,0 +1,37 @@
+build:
+  maxIssues: 0
+
+config:
+  validation: true
+  warningsAsErrors: false
+
+complexity:
+  LongParameterList:
+    functionThreshold: 8
+    constructorThreshold: 12
+  TooManyFunctions:
+    thresholdInClasses: 25
+    thresholdInInterfaces: 20
+
+exceptions:
+  TooGenericExceptionCaught:
+    active: false
+  SwallowedException:
+    active: false
+
+performance:
+  SpreadOperator:
+    active: false
+
+style:
+  MagicNumber:
+    active: false
+  WildcardImport:
+    active: false
+  FunctionOnlyReturningConstant:
+    active: false
+  UnusedParameter:
+    active: false
+  UnusedPrivateMember:
+    active: true
+    allowedNames: "(_|ignored|expected|serialVersionUID)"

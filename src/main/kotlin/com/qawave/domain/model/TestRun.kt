@@ -18,7 +18,7 @@ data class TestRun(
     val startedAt: Instant,
     val completedAt: Instant? = null,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
 ) {
     init {
         require(baseUrl.isNotBlank()) { "Base URL cannot be blank" }
@@ -34,7 +34,14 @@ data class TestRun(
      * Whether the test run has completed (success or failure).
      */
     val isComplete: Boolean
-        get() = status in listOf(TestRunStatus.PASSED, TestRunStatus.FAILED, TestRunStatus.ERROR, TestRunStatus.CANCELLED)
+        get() =
+            status in
+                listOf(
+                    TestRunStatus.PASSED,
+                    TestRunStatus.FAILED,
+                    TestRunStatus.ERROR,
+                    TestRunStatus.CANCELLED,
+                )
 
     /**
      * Number of passed steps.
@@ -93,5 +100,5 @@ enum class TestRunStatus {
     /**
      * Run was cancelled before completion.
      */
-    CANCELLED
+    CANCELLED,
 }

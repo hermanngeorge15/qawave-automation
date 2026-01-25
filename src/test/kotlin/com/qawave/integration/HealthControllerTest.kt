@@ -14,13 +14,14 @@ import org.springframework.test.web.reactive.server.WebTestClient
 @SpringBootTest(webEnvironment = SpringBootTest.WebEnvironment.RANDOM_PORT)
 @AutoConfigureWebTestClient
 @ActiveProfiles("test")
-@EnableAutoConfiguration(exclude = [
-    RedisAutoConfiguration::class,
-    RedisReactiveAutoConfiguration::class,
-    KafkaAutoConfiguration::class
-])
+@EnableAutoConfiguration(
+    exclude = [
+        RedisAutoConfiguration::class,
+        RedisReactiveAutoConfiguration::class,
+        KafkaAutoConfiguration::class,
+    ],
+)
 class HealthControllerTest {
-
     @Autowired
     private lateinit var webTestClient: WebTestClient
 

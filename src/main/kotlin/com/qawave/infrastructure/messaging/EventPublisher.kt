@@ -11,7 +11,7 @@ import org.springframework.stereotype.Service
  */
 @Service
 class EventPublisher(
-    private val kafkaTemplate: KafkaTemplate<String, Any>
+    private val kafkaTemplate: KafkaTemplate<String, Any>,
 ) {
     private val logger = LoggerFactory.getLogger(EventPublisher::class.java)
 
@@ -24,16 +24,28 @@ class EventPublisher(
         val key = event.aggregateId
 
         try {
-            logger.debug("Publishing event to topic '{}': eventId={}, aggregateId={}",
-                topic, event.eventId, event.aggregateId)
+            logger.debug(
+                "Publishing event to topic '{}': eventId={}, aggregateId={}",
+                topic,
+                event.eventId,
+                event.aggregateId,
+            )
 
             kafkaTemplate.send(topic, key, event).await()
 
-            logger.info("Published event: type={}, eventId={}, aggregateId={}",
-                event::class.simpleName, event.eventId, event.aggregateId)
+            logger.info(
+                "Published event: type={}, eventId={}, aggregateId={}",
+                event::class.simpleName,
+                event.eventId,
+                event.aggregateId,
+            )
         } catch (e: Exception) {
-            logger.error("Failed to publish event: type={}, eventId={}, error={}",
-                event::class.simpleName, event.eventId, e.message)
+            logger.error(
+                "Failed to publish event: type={}, eventId={}, error={}",
+                event::class.simpleName,
+                event.eventId,
+                e.message,
+            )
             throw EventPublishException("Failed to publish event ${event.eventId}", e)
         }
     }
@@ -52,15 +64,18 @@ class EventPublisher(
         return when (event) {
             is QaPackageCreatedEvent,
             is QaPackageStatusChangedEvent,
-            is QaPackageCompletedEvent -> KafkaTopics.QA_PACKAGE_EVENTS
+            is QaPackageCompletedEvent,
+            -> KafkaTopics.QA_PACKAGE_EVENTS
 
             is TestRunStartedEvent,
-            is TestRunCompletedEvent -> KafkaTopics.TEST_RUN_EVENTS
+            is TestRunCompletedEvent,
+            -> KafkaTopics.TEST_RUN_EVENTS
 
             is ScenarioGeneratedEvent -> KafkaTopics.SCENARIO_EVENTS
 
             is AiGenerationRequestedEvent,
-            is AiGenerationCompletedEvent -> KafkaTopics.AI_GENERATION_EVENTS
+            is AiGenerationCompletedEvent,
+            -> KafkaTopics.AI_GENERATION_EVENTS
         }
     }
 }

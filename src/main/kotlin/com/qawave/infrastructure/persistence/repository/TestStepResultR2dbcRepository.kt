@@ -13,7 +13,6 @@ import java.util.UUID
  */
 @Repository
 interface TestStepResultR2dbcRepository : CoroutineCrudRepository<TestStepResultEntity, UUID> {
-
     /**
      * Find all step results for a test run.
      */
@@ -33,12 +32,18 @@ interface TestStepResultR2dbcRepository : CoroutineCrudRepository<TestStepResult
     /**
      * Find a specific step result by run ID and step index.
      */
-    suspend fun findByRunIdAndStepIndex(runId: UUID, stepIndex: Int): TestStepResultEntity?
+    suspend fun findByRunIdAndStepIndex(
+        runId: UUID,
+        stepIndex: Int,
+    ): TestStepResultEntity?
 
     /**
      * Find passed step results for a run.
      */
-    suspend fun findByRunIdAndPassed(runId: UUID, passed: Boolean): List<TestStepResultEntity>
+    suspend fun findByRunIdAndPassed(
+        runId: UUID,
+        passed: Boolean,
+    ): List<TestStepResultEntity>
 
     /**
      * Count step results by run ID.

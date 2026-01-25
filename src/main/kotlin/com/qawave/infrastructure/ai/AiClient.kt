@@ -32,7 +32,7 @@ data class AiCompletionRequest(
     val model: String? = null,
     val temperature: Double = 0.2,
     val maxTokens: Int = 4096,
-    val stopSequences: List<String> = emptyList()
+    val stopSequences: List<String> = emptyList(),
 )
 
 /**
@@ -44,7 +44,7 @@ data class AiCompletionResponse(
     val promptTokens: Int,
     val completionTokens: Int,
     val totalTokens: Int,
-    val finishReason: FinishReason
+    val finishReason: FinishReason,
 )
 
 /**
@@ -53,17 +53,17 @@ data class AiCompletionResponse(
 data class AiStreamChunk(
     val content: String,
     val isComplete: Boolean = false,
-    val finishReason: FinishReason? = null
+    val finishReason: FinishReason? = null,
 )
 
 /**
  * Reason for completion finishing.
  */
 enum class FinishReason {
-    STOP,           // Natural end of generation
-    LENGTH,         // Max tokens reached
+    STOP, // Natural end of generation
+    LENGTH, // Max tokens reached
     CONTENT_FILTER, // Content was filtered
-    ERROR           // An error occurred
+    ERROR, // An error occurred
 }
 
 /**
@@ -71,7 +71,7 @@ enum class FinishReason {
  */
 open class AiClientException(
     message: String,
-    cause: Throwable? = null
+    cause: Throwable? = null,
 ) : RuntimeException(message, cause)
 
 /**
@@ -79,7 +79,7 @@ open class AiClientException(
  */
 class AiRateLimitException(
     message: String,
-    val retryAfterSeconds: Int? = null
+    val retryAfterSeconds: Int? = null,
 ) : AiClientException(message)
 
 /**
@@ -87,5 +87,5 @@ class AiRateLimitException(
  */
 class AiProviderException(
     message: String,
-    val statusCode: Int
+    val statusCode: Int,
 ) : AiClientException(message)
