@@ -1,0 +1,169 @@
+# Kafka Cluster Definition for QAWave
+# Managed by Strimzi operator
+#
+# This creates a Kafka cluster with:
+# - Single broker (for development/staging)
+# - Persistent storage
+# - Prometheus metrics
+#
+# For production, increase replicas to 3
+#
+apiVersion: kafka.strimzi.io/v1beta2
+kind: Kafka
+metadata:
+  name: qawave-kafka
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/part-of: qawave
+    app.kubernetes.io/component: messaging
+spec:
+  kafka:
+    version: 3.7.0
+    replicas: 1  # Increase to 3 for production
+    listeners:
+      - name: plain
+        port: 9092
+        type: internal
+        tls: false
+      - name: tls
+        port: 9093
+        type: internal
+        tls: true
+    config:
+      # Broker configuration
+      offsets.topic.replication.factor: 1  # Set to 3 for production
+      transaction.state.log.replication.factor: 1  # Set to 3 for production
+      transaction.state.log.min.isr: 1  # Set to 2 for production
+      default.replication.factor: 1  # Set to 3 for production
+      min.insync.replicas: 1  # Set to 2 for production
+
+      # Log retention
+      log.retention.hours: 168  # 7 days
+      log.retention.bytes: 1073741824  # 1GB per partition
+      log.segment.bytes: 1073741824
+
+      # Performance
+      num.network.threads: 3
+      num.io.threads: 8
+      socket.send.buffer.bytes: 102400
+      socket.receive.buffer.bytes: 102400
+      socket.request.max.bytes: 104857600
+
+      # Auto create topics
+      auto.create.topics.enable: false
+
+    storage:
+      type: persistent-claim
+      size: 10Gi
+      deleteClaim: false
+      # storageClass: ""  # Use default storage class
+
+    resources:
+      requests:
+        memory: 512Mi
+        cpu: 250m
+      limits:
+        memory: 2Gi
+        cpu: 1000m
+
+    metricsConfig:
+      type: jmxPrometheusExporter
+      valueFrom:
+        configMapKeyRef:
+          name: kafka-metrics
+          key: kafka-metrics-config.yml
+
+  zookeeper:
+    replicas: 1  # Increase to 3 for production
+    storage:
+      type: persistent-claim
+      size: 5Gi
+      deleteClaim: false
+
+    resources:
+      requests:
+        memory: 256Mi
+        cpu: 100m
+      limits:
+        memory: 512Mi
+        cpu: 500m
+
+  entityOperator:
+    topicOperator:
+      resources:
+        requests:
+          memory: 256Mi
+          cpu: 100m
+        limits:
+          memory: 512Mi
+          cpu: 500m
+    userOperator:
+      resources:
+        requests:
+          memory: 256Mi
+          cpu: 100m
+        limits:
+          memory: 512Mi
+          cpu: 500m
+---
+# Metrics configuration for Prometheus
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: kafka-metrics
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/part-of: qawave
+data:
+  kafka-metrics-config.yml: |
+    lowercaseOutputName: true
+    lowercaseOutputLabelNames: true
+    rules:
+      # Broker metrics
+      - pattern: kafka.server<type=(.+), name=(.+), clientId=(.+), topic=(.+), partition=(.*)><>Value
+        name: kafka_server_$1_$2
+        type: GAUGE
+        labels:
+          clientId: "$3"
+          topic: "$4"
+          partition: "$5"
+      - pattern: kafka.server<type=(.+), name=(.+), clientId=(.+), brokerHost=(.+), brokerPort=(.+)><>Value
+        name: kafka_server_$1_$2
+        type: GAUGE
+        labels:
+          clientId: "$3"
+          broker: "$4:$5"
+      - pattern: kafka.server<type=(.+), name=(.+)><>Value
+        name: kafka_server_$1_$2
+        type: GAUGE
+      - pattern: kafka.server<type=(.+), name=(.+)><>Count
+        name: kafka_server_$1_$2_total
+        type: COUNTER
+      # Controller metrics
+      - pattern: kafka.controller<type=(.+), name=(.+)><>Value
+        name: kafka_controller_$1_$2
+        type: GAUGE
+      # Network metrics
+      - pattern: kafka.network<type=(.+), name=(.+), request=(.+), error=(.+)><>Count
+        name: kafka_network_$1_$2_total
+        type: COUNTER
+        labels:
+          request: "$3"
+          error: "$4"
+      - pattern: kafka.network<type=(.+), name=(.+), request=(.+)><>Count
+        name: kafka_network_$1_$2_total
+        type: COUNTER
+        labels:
+          request: "$3"
+      - pattern: kafka.network<type=(.+), name=(.+)><>Value
+        name: kafka_network_$1_$2
+        type: GAUGE
+      # Log metrics
+      - pattern: kafka.log<type=(.+), name=(.+), topic=(.+), partition=(.+)><>Value
+        name: kafka_log_$1_$2
+        type: GAUGE
+        labels:
+          topic: "$3"
+          partition: "$4"

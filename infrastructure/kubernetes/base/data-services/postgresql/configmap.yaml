@@ -1,0 +1,23 @@
+# PostgreSQL ConfigMap
+# Non-sensitive configuration for PostgreSQL
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-config
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: database
+data:
+  # Connection pool settings for application reference
+  POOL_MIN_SIZE: "5"
+  POOL_MAX_SIZE: "20"
+  POOL_INITIAL_SIZE: "10"
+
+  # Timeout settings (milliseconds)
+  CONNECTION_TIMEOUT: "30000"
+  STATEMENT_TIMEOUT: "60000"
+
+  # Health check query
+  VALIDATION_QUERY: "SELECT 1"

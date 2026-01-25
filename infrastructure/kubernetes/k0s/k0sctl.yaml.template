@@ -1,0 +1,113 @@
+# QAWave K0s Cluster Configuration
+# Copy to k0sctl.yaml and fill in the IP addresses from Terraform output
+#
+# Usage:
+#   1. Copy this file: cp k0sctl.yaml.template k0sctl.yaml
+#   2. Fill in the IP addresses from `terraform output`
+#   3. Run: k0sctl apply --config k0sctl.yaml
+#
+apiVersion: k0sctl.k0sproject.io/v1beta1
+kind: Cluster
+metadata:
+  name: qawave-production
+spec:
+  hosts:
+    # Control Plane Node
+    - role: controller
+      ssh:
+        address: ${CONTROL_PLANE_IP}  # Replace with actual IP
+        user: root
+        port: 22
+        keyPath: ~/.ssh/id_rsa
+      installFlags:
+        - --enable-metrics-scraper
+
+    # Worker Nodes
+    - role: worker
+      ssh:
+        address: ${WORKER_1_IP}  # Replace with actual IP
+        user: root
+        port: 22
+        keyPath: ~/.ssh/id_rsa
+
+    - role: worker
+      ssh:
+        address: ${WORKER_2_IP}  # Replace with actual IP
+        user: root
+        port: 22
+        keyPath: ~/.ssh/id_rsa
+
+    - role: worker
+      ssh:
+        address: ${WORKER_3_IP}  # Replace with actual IP
+        user: root
+        port: 22
+        keyPath: ~/.ssh/id_rsa
+
+  k0s:
+    version: 1.29.2+k0s.0
+    dynamicConfig: false
+    config:
+      apiVersion: k0s.k0sproject.io/v1beta1
+      kind: ClusterConfig
+      metadata:
+        name: qawave
+      spec:
+        api:
+          port: 6443
+          k0sApiPort: 9443
+          externalAddress: ${CONTROL_PLANE_IP}
+          sans:
+            - ${CONTROL_PLANE_IP}
+            - ${LOAD_BALANCER_IP}
+
+        network:
+          provider: calico
+          calico:
+            mode: vxlan
+            vxlanPort: 4789
+            vxlanVNI: 4096
+          podCIDR: 10.244.0.0/16
+          serviceCIDR: 10.96.0.0/12
+
+        storage:
+          type: etcd
+
+        telemetry:
+          enabled: false
+
+        extensions:
+          helm:
+            repositories:
+              - name: ingress-nginx
+                url: https://kubernetes.github.io/ingress-nginx
+              - name: prometheus-community
+                url: https://prometheus-community.github.io/helm-charts
+              - name: grafana
+                url: https://grafana.github.io/helm-charts
+            charts:
+              # Nginx Ingress Controller
+              - name: ingress-nginx
+                chartname: ingress-nginx/ingress-nginx
+                version: "4.9.1"
+                namespace: ingress-nginx
+                values: |
+                  controller:
+                    service:
+                      type: NodePort
+                      nodePorts:
+                        http: 30080
+                        https: 30443
+                    metrics:
+                      enabled: true
+                    resources:
+                      requests:
+                        cpu: 100m
+                        memory: 128Mi
+                      limits:
+                        cpu: 500m
+                        memory: 512Mi
+                    config:
+                      use-forwarded-headers: "true"
+                      compute-full-forwarded-for: "true"
+                      use-proxy-protocol: "false"

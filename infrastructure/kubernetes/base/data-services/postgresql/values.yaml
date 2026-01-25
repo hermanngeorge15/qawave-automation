@@ -1,0 +1,130 @@
+# PostgreSQL Helm Values for QAWave
+# Chart: bitnami/postgresql
+# Version: 15.x
+#
+# Install:
+#   helm repo add bitnami https://charts.bitnami.com/bitnami
+#   helm install postgresql bitnami/postgresql -n qawave -f values.yaml
+#
+
+# PostgreSQL version
+image:
+  tag: "16.2.0"
+
+# Authentication
+auth:
+  database: qawave
+  username: qawave
+  # Password should be overridden via --set or secrets
+  # existingSecret: postgresql-secrets
+  # secretKeys:
+  #   adminPasswordKey: postgres-password
+  #   userPasswordKey: password
+
+# Primary instance configuration
+primary:
+  # Resource limits
+  resources:
+    requests:
+      cpu: 250m
+      memory: 512Mi
+    limits:
+      cpu: 1000m
+      memory: 2Gi
+
+  # Persistence
+  persistence:
+    enabled: true
+    size: 20Gi
+    storageClass: ""  # Use default storage class
+
+  # PostgreSQL configuration
+  configuration: |
+    # Connection settings
+    max_connections = 200
+    shared_buffers = 512MB
+    effective_cache_size = 1536MB
+    maintenance_work_mem = 128MB
+    checkpoint_completion_target = 0.9
+    wal_buffers = 16MB
+    default_statistics_target = 100
+    random_page_cost = 1.1
+    effective_io_concurrency = 200
+    work_mem = 2621kB
+    min_wal_size = 1GB
+    max_wal_size = 4GB
+    max_worker_processes = 4
+    max_parallel_workers_per_gather = 2
+    max_parallel_workers = 4
+    max_parallel_maintenance_workers = 2
+
+    # Logging
+    log_destination = 'stderr'
+    logging_collector = off
+    log_statement = 'ddl'
+    log_min_duration_statement = 1000
+
+  # Init scripts for database setup
+  initdb:
+    scripts:
+      init.sql: |
+        -- Enable required extensions
+        CREATE EXTENSION IF NOT EXISTS "uuid-ossp";
+        CREATE EXTENSION IF NOT EXISTS "pgcrypto";
+
+        -- Grant permissions
+        GRANT ALL PRIVILEGES ON DATABASE qawave TO qawave;
+
+  # Pod annotations for monitoring
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9187"
+
+  # Affinity rules - prefer scheduling on different nodes
+  affinity:
+    podAntiAffinity:
+      preferredDuringSchedulingIgnoredDuringExecution:
+        - weight: 100
+          podAffinityTerm:
+            labelSelector:
+              matchLabels:
+                app.kubernetes.io/name: postgresql
+            topologyKey: kubernetes.io/hostname
+
+# Metrics exporter for Prometheus
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false  # Enable if using Prometheus Operator
+  resources:
+    requests:
+      cpu: 50m
+      memory: 64Mi
+    limits:
+      cpu: 100m
+      memory: 128Mi
+
+# Network policy
+networkPolicy:
+  enabled: true
+  allowExternal: false
+  ingressRules:
+    primaryAccessOnlyFrom:
+      namespaceSelector:
+        matchLabels:
+          kubernetes.io/metadata.name: qawave
+      podSelector:
+        matchLabels:
+          app.kubernetes.io/name: backend
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    postgresql: 5432
+
+# Backup configuration (optional - requires external backup solution)
+# For production, consider:
+# - WAL-G for continuous backups
+# - pg_dump cronjob for logical backups
+# - CloudNativePG operator for advanced scenarios

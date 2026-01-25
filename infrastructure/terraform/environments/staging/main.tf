@@ -1,5 +1,11 @@
-# QAWave Production Infrastructure
+# QAWave Staging Infrastructure
 # Hetzner Cloud + K0s Kubernetes Cluster
+#
+# Cost estimate: ~17/month
+#   - CX11 (Control Plane): ~4/month
+#   - CX21 (Worker): ~6/month
+#   - LB11 (Load Balancer): ~6/month
+#   - Volumes: ~1/month
 
 terraform {
   required_version = ">= 1.6.0"
@@ -21,7 +27,7 @@ terraform {
 
   backend "s3" {
     bucket = "qawave-terraform-state"
-    key    = "production/terraform.tfstate"
+    key    = "staging/terraform.tfstate"
     region = "eu-central-1"
     # Use any S3-compatible backend (e.g., Backblaze B2, Wasabi)
   }
@@ -32,49 +38,25 @@ provider "hcloud" {
 }
 
 # =============================================================================
-# Variables
+# Local Values
 # =============================================================================
 
-variable "hcloud_token" {
-  description = "Hetzner Cloud API Token"
-  type        = string
-  sensitive   = true
-}
+locals {
+  environment = "staging"
+  # Staging uses smaller instances than production
+  control_plane_type = "cx11" # 1 vCPU, 2GB RAM
+  worker_type        = "cx21" # 2 vCPU, 4GB RAM
+  worker_count       = 1      # Single worker for staging
 
-variable "environment" {
-  description = "Environment name"
-  type        = string
-  default     = "production"
-}
+  # Network range different from production (10.0.x.x)
+  network_range = "10.1.0.0/16"
+  subnet_range  = "10.1.1.0/24"
 
-variable "location" {
-  description = "Hetzner datacenter location"
-  type        = string
-  default     = "nbg1" # Nuremberg
-}
-
-variable "ssh_public_key_path" {
-  description = "Path to SSH public key"
-  type        = string
-  default     = "~/.ssh/id_rsa.pub"
-}
-
-variable "control_plane_type" {
-  description = "Server type for control plane"
-  type        = string
-  default     = "cx21" # 2 vCPU, 4GB RAM
-}
-
-variable "worker_type" {
-  description = "Server type for workers"
-  type        = string
-  default     = "cx31" # 2 vCPU, 8GB RAM
-}
-
-variable "worker_count" {
-  description = "Number of worker nodes"
-  type        = number
-  default     = 3
+  common_labels = {
+    environment = local.environment
+    managed_by  = "terraform"
+    project     = "qawave"
+  }
 }
 
 # =============================================================================
@@ -82,24 +64,26 @@ variable "worker_count" {
 # =============================================================================
 
 resource "hcloud_ssh_key" "main" {
-  name       = "qawave-${var.environment}"
+  name       = "qawave-${local.environment}"
   public_key = file(var.ssh_public_key_path)
 }
 
 # =============================================================================
-# Network
+# Network (Isolated from production)
 # =============================================================================
 
 resource "hcloud_network" "main" {
-  name     = "qawave-${var.environment}"
-  ip_range = "10.0.0.0/16"
+  name     = "qawave-${local.environment}"
+  ip_range = local.network_range
+
+  labels = local.common_labels
 }
 
 resource "hcloud_network_subnet" "nodes" {
   network_id   = hcloud_network.main.id
   type         = "cloud"
   network_zone = "eu-central"
-  ip_range     = "10.0.1.0/24"
+  ip_range     = local.subnet_range
 }
 
 # =============================================================================
@@ -107,7 +91,9 @@ resource "hcloud_network_subnet" "nodes" {
 # =============================================================================
 
 resource "hcloud_firewall" "k8s" {
-  name = "qawave-k8s-${var.environment}"
+  name = "qawave-k8s-${local.environment}"
+
+  labels = local.common_labels
 
   # SSH
   rule {
@@ -154,14 +140,14 @@ resource "hcloud_firewall" "k8s" {
     direction  = "in"
     protocol   = "tcp"
     port       = "any"
-    source_ips = ["10.0.0.0/16"]
+    source_ips = [local.network_range]
   }
 
   rule {
     direction  = "in"
     protocol   = "udp"
     port       = "any"
-    source_ips = ["10.0.0.0/16"]
+    source_ips = [local.network_range]
   }
 }
 
@@ -170,8 +156,8 @@ resource "hcloud_firewall" "k8s" {
 # =============================================================================
 
 resource "hcloud_server" "control_plane" {
-  name         = "qawave-cp-${var.environment}"
-  server_type  = var.control_plane_type
+  name         = "qawave-cp-${local.environment}"
+  server_type  = local.control_plane_type
   image        = "ubuntu-22.04"
   location     = var.location
   ssh_keys     = [hcloud_ssh_key.main.id]
@@ -179,51 +165,52 @@ resource "hcloud_server" "control_plane" {
 
   network {
     network_id = hcloud_network.main.id
-    ip         = "10.0.1.10"
+    ip         = "10.1.1.10"
   }
 
-  labels = {
-    role        = "control-plane"
-    environment = var.environment
-    managed_by  = "terraform"
-  }
+  labels = merge(local.common_labels, {
+    role = "control-plane"
+  })
 
   user_data = <<-EOF
     #!/bin/bash
     set -e
-    
+
     # Update system
     apt-get update && apt-get upgrade -y
-    
+
     # Install k0s
     curl -sSLf https://get.k0s.sh | sudo sh
-    
-    # Install k0s as controller
+
+    # Install k0s as controller (single node for staging)
     k0s install controller --single
     k0s start
-    
+
     # Wait for k0s to be ready
     sleep 30
-    
+
     # Install kubectl
     curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
     chmod +x kubectl
     mv kubectl /usr/local/bin/
-    
+
     # Set up kubeconfig
     mkdir -p /root/.kube
     k0s kubeconfig admin > /root/.kube/config
   EOF
+
+  lifecycle {
+    ignore_changes = [user_data]
+  }
 }
 
 # =============================================================================
-# Worker Nodes
+# Worker Node (Single worker for staging)
 # =============================================================================
 
-resource "hcloud_server" "workers" {
-  count        = var.worker_count
-  name         = "qawave-worker-${var.environment}-${count.index + 1}"
-  server_type  = var.worker_type
+resource "hcloud_server" "worker" {
+  name         = "qawave-worker-${local.environment}"
+  server_type  = local.worker_type
   image        = "ubuntu-22.04"
   location     = var.location
   ssh_keys     = [hcloud_ssh_key.main.id]
@@ -231,15 +218,12 @@ resource "hcloud_server" "workers" {
 
   network {
     network_id = hcloud_network.main.id
-    ip         = "10.0.1.${11 + count.index}"
+    ip         = "10.1.1.11"
   }
 
-  labels = {
-    role        = "worker"
-    environment = var.environment
-    managed_by  = "terraform"
-    worker_id   = tostring(count.index + 1)
-  }
+  labels = merge(local.common_labels, {
+    role = "worker"
+  })
 
   depends_on = [hcloud_server.control_plane]
 }
@@ -249,27 +233,23 @@ resource "hcloud_server" "workers" {
 # =============================================================================
 
 resource "hcloud_load_balancer" "main" {
-  name               = "qawave-lb-${var.environment}"
+  name               = "qawave-lb-${local.environment}"
   load_balancer_type = "lb11"
   location           = var.location
 
-  labels = {
-    environment = var.environment
-    managed_by  = "terraform"
-  }
+  labels = local.common_labels
 }
 
 resource "hcloud_load_balancer_network" "main" {
   load_balancer_id = hcloud_load_balancer.main.id
   network_id       = hcloud_network.main.id
-  ip               = "10.0.1.100"
+  ip               = "10.1.1.100"
 }
 
-resource "hcloud_load_balancer_target" "workers" {
-  count            = var.worker_count
+resource "hcloud_load_balancer_target" "worker" {
   type             = "server"
   load_balancer_id = hcloud_load_balancer.main.id
-  server_id        = hcloud_server.workers[count.index].id
+  server_id        = hcloud_server.worker.id
   use_private_ip   = true
 }
 
@@ -304,85 +284,27 @@ resource "hcloud_load_balancer_service" "https" {
 }
 
 # =============================================================================
-# Volumes for Data Services
+# Volumes for Data Services (Smaller than production)
 # =============================================================================
 
 resource "hcloud_volume" "postgres" {
-  name     = "qawave-postgres-${var.environment}"
-  size     = 50
+  name     = "qawave-postgres-${local.environment}"
+  size     = 20 # Smaller than prod (50GB)
   location = var.location
   format   = "ext4"
 
-  labels = {
-    service     = "postgresql"
-    environment = var.environment
-  }
+  labels = merge(local.common_labels, {
+    service = "postgresql"
+  })
 }
 
 resource "hcloud_volume" "redis" {
-  name     = "qawave-redis-${var.environment}"
+  name     = "qawave-redis-${local.environment}"
   size     = 10
   location = var.location
   format   = "ext4"
 
-  labels = {
-    service     = "redis"
-    environment = var.environment
-  }
-}
-
-resource "hcloud_volume" "kafka" {
-  name     = "qawave-kafka-${var.environment}"
-  size     = 50
-  location = var.location
-  format   = "ext4"
-
-  labels = {
-    service     = "kafka"
-    environment = var.environment
-  }
-}
-
-# =============================================================================
-# Outputs
-# =============================================================================
-
-output "control_plane_ip" {
-  description = "Public IP of the control plane"
-  value       = hcloud_server.control_plane.ipv4_address
-}
-
-output "control_plane_private_ip" {
-  description = "Private IP of the control plane"
-  value       = "10.0.1.10"
-}
-
-output "worker_ips" {
-  description = "Public IPs of worker nodes"
-  value       = hcloud_server.workers[*].ipv4_address
-}
-
-output "worker_private_ips" {
-  description = "Private IPs of worker nodes"
-  value       = [for i in range(var.worker_count) : "10.0.1.${11 + i}"]
-}
-
-output "load_balancer_ip" {
-  description = "Public IP of the load balancer"
-  value       = hcloud_load_balancer.main.ipv4
-}
-
-output "network_id" {
-  description = "ID of the private network"
-  value       = hcloud_network.main.id
-}
-
-output "ssh_command" {
-  description = "SSH command to connect to control plane"
-  value       = "ssh root@${hcloud_server.control_plane.ipv4_address}"
-}
-
-output "kubeconfig_command" {
-  description = "Command to get kubeconfig"
-  value       = "ssh root@${hcloud_server.control_plane.ipv4_address} 'k0s kubeconfig admin' > kubeconfig.yaml"
+  labels = merge(local.common_labels, {
+    service = "redis"
+  })
 }

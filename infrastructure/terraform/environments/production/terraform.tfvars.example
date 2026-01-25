@@ -1,0 +1,26 @@
+# QAWave Production Environment Variables
+# Copy this file to terraform.tfvars and fill in the values
+# NEVER commit terraform.tfvars with real values!
+
+# Hetzner Cloud API Token (required)
+# Get from: https://console.hetzner.cloud/ → Project → Security → API tokens
+hcloud_token = "your-hetzner-api-token-here"
+
+# Environment name
+environment = "production"
+
+# Hetzner datacenter location
+# Options: nbg1 (Nuremberg), fsn1 (Falkenstein), hel1 (Helsinki), ash (Ashburn)
+location = "nbg1"
+
+# Path to your SSH public key
+ssh_public_key_path = "~/.ssh/id_rsa.pub"
+
+# Server types
+# Control plane: cx21 (2 vCPU, 4GB) recommended minimum
+# Workers: cx31 (2 vCPU, 8GB) recommended for production workloads
+control_plane_type = "cx21"
+worker_type = "cx31"
+
+# Number of worker nodes (minimum 1 for HA, 3 recommended)
+worker_count = 3

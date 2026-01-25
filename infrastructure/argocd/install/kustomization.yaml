@@ -1,0 +1,66 @@
+# ArgoCD Installation with Kustomize
+# Uses official ArgoCD manifests with custom patches
+#
+# Install: kubectl apply -k infrastructure/argocd/install/
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: argocd
+
+resources:
+  # Official ArgoCD HA manifests (stable release)
+  - https://raw.githubusercontent.com/argoproj/argo-cd/v2.10.4/manifests/install.yaml
+
+patches:
+  # Patch argocd-server for insecure mode (TLS terminated at ingress)
+  - target:
+      kind: Deployment
+      name: argocd-server
+    patch: |-
+      - op: add
+        path: /spec/template/spec/containers/0/args/-
+        value: --insecure
+
+  # Configure resource limits
+  - target:
+      kind: Deployment
+      name: argocd-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 512Mi
+
+  - target:
+      kind: Deployment
+      name: argocd-repo-server
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 100m
+            memory: 256Mi
+          limits:
+            cpu: 500m
+            memory: 1Gi
+
+  - target:
+      kind: Deployment
+      name: argocd-application-controller
+    patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/resources
+        value:
+          requests:
+            cpu: 250m
+            memory: 512Mi
+          limits:
+            cpu: 1000m
+            memory: 2Gi
