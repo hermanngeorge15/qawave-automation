@@ -39,10 +39,27 @@ qawave:
   ai:
     provider: ${AI_PROVIDER:openai}
     api-key: ${AI_API_KEY:}
+    base-url: ${AI_BASE_URL:https://api.openai.com}
     model: ${AI_MODEL:gpt-4o-mini}
     temperature: 0.2
     max-attempts: 3
     concurrency-limit: 5
+    resilience:
+      circuit-breaker:
+        failure-rate-threshold: 50
+        wait-duration-in-open-state-seconds: 60
+        permitted-calls-in-half-open: 3
+        sliding-window-size: 10
+      rate-limiter:
+        limit-for-period: 10
+        limit-refresh-period-seconds: 1
+        timeout-duration-seconds: 5
+      retry:
+        max-attempts: 3
+        wait-duration-ms: 500
+      bulkhead:
+        max-concurrent-calls: 5
+        max-wait-duration-ms: 1000
   execution:
     timeout-max-ms: 300000
     timeout-default-ms: 30000
