@@ -125,7 +125,9 @@ function PackageDetailPage() {
       <div className="border-b border-secondary-700 mb-6">
         <nav className="flex gap-4">
           <button
-            onClick={() => setActiveTab('scenarios')}
+            onClick={() => {
+              setActiveTab('scenarios')
+            }}
             className={`pb-3 px-1 border-b-2 transition-colors ${
               activeTab === 'scenarios'
                 ? 'border-primary-500 text-white'
@@ -135,7 +137,9 @@ function PackageDetailPage() {
             Scenarios ({scenarios?.totalElements ?? 0})
           </button>
           <button
-            onClick={() => setActiveTab('runs')}
+            onClick={() => {
+              setActiveTab('runs')
+            }}
             className={`pb-3 px-1 border-b-2 transition-colors ${
               activeTab === 'runs'
                 ? 'border-primary-500 text-white'
@@ -291,7 +295,7 @@ function RunCard({ run, packageId }: { run: TestRun; packageId: string }) {
           <div className="flex items-center gap-2 mb-1">
             <span className="font-medium text-white">Run #{run.id.slice(0, 8)}</span>
             <span
-              className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[run.status] ?? statusColors.PENDING}`}
+              className={`px-2 py-0.5 rounded-full text-xs font-medium ${statusColors[run.status] ?? 'bg-yellow-500/10 text-yellow-500'}`}
             >
               {run.status}
             </span>
