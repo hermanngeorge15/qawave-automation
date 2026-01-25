@@ -1,7 +1,7 @@
 import type { ApiErrorResponse } from './types'
 
 // Configuration
-const API_BASE_URL = import.meta.env.VITE_API_BASE_URL ?? 'http://localhost:8080'
+const API_BASE_URL = (import.meta.env.VITE_API_BASE_URL as string | undefined) ?? 'http://localhost:8080'
 const DEFAULT_TIMEOUT_MS = 30000
 
 // Custom Error Classes
@@ -97,7 +97,9 @@ async function apiFetch<T>(endpoint: string, options: RequestOptions = {}): Prom
 
   // Create abort controller for timeout
   const timeoutController = new AbortController()
-  const timeoutId = setTimeout(() => timeoutController.abort(), timeout)
+  const timeoutId = setTimeout(() => {
+    timeoutController.abort()
+  }, timeout)
 
   // Combine signals if external signal provided
   const signal = externalSignal
@@ -141,7 +143,7 @@ async function apiFetch<T>(endpoint: string, options: RequestOptions = {}): Prom
       return undefined as T
     }
 
-    const data = await response.json()
+    const data: unknown = await response.json()
     return data as T
   } catch (error) {
     if (error instanceof ApiError) {
@@ -166,11 +168,16 @@ async function apiFetch<T>(endpoint: string, options: RequestOptions = {}): Prom
 
 async function parseErrorResponse(response: Response): Promise<ApiErrorResponse> {
   try {
-    const data = await response.json()
+    const data = (await response.json()) as {
+      message?: string
+      code?: string
+      details?: Record<string, unknown>
+      timestamp?: string
+    }
     return {
       message: data.message ?? 'An error occurred',
       code: data.code ?? 'UNKNOWN_ERROR',
-      details: data.details,
+      ...(data.details && { details: data.details }),
       timestamp: data.timestamp ?? new Date().toISOString(),
     }
   } catch {
@@ -191,7 +198,9 @@ function combineAbortSignals(...signals: AbortSignal[]): AbortSignal {
       return controller.signal
     }
 
-    signal.addEventListener('abort', () => controller.abort(), { once: true })
+    signal.addEventListener('abort', () => {
+      controller.abort()
+    }, { once: true })
   }
 
   return controller.signal

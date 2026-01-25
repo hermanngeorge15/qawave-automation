@@ -14,7 +14,7 @@ export const scenariosApi = {
     signal?: AbortSignal
   ): Promise<PaginatedResponse<Scenario>> {
     return apiClient.get<PaginatedResponse<Scenario>>(
-      `${BASE_PATH}?packageId=${packageId}&page=${page}&size=${size}`,
+      `${BASE_PATH}?packageId=${packageId}&page=${String(page)}&size=${String(size)}`,
       { signal }
     )
   },
@@ -36,15 +36,15 @@ export const scenariosApi = {
   /**
    * Delete a scenario
    */
-  delete(id: string): Promise<void> {
-    return apiClient.delete<void>(`${BASE_PATH}/${id}`)
+  delete(id: string): Promise<undefined> {
+    return apiClient.delete<undefined>(`${BASE_PATH}/${id}`)
   },
 
   /**
    * Run a single scenario
    */
-  run(id: string): Promise<void> {
-    return apiClient.post<void>(`${BASE_PATH}/${id}/run`)
+  run(id: string): Promise<undefined> {
+    return apiClient.post<undefined>(`${BASE_PATH}/${id}/run`)
   },
 }
 

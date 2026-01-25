@@ -15,7 +15,7 @@ export const packagesApi = {
    */
   list(page = 0, size = 20, signal?: AbortSignal): Promise<PaginatedResponse<QaPackage>> {
     return apiClient.get<PaginatedResponse<QaPackage>>(
-      `${BASE_PATH}?page=${page}&size=${size}`,
+      `${BASE_PATH}?page=${String(page)}&size=${String(size)}`,
       { signal }
     )
   },
@@ -44,15 +44,15 @@ export const packagesApi = {
   /**
    * Delete a QA package
    */
-  delete(id: string): Promise<void> {
-    return apiClient.delete<void>(`${BASE_PATH}/${id}`)
+  delete(id: string): Promise<undefined> {
+    return apiClient.delete<undefined>(`${BASE_PATH}/${id}`)
   },
 
   /**
    * Trigger scenario generation for a package
    */
-  generateScenarios(id: string): Promise<void> {
-    return apiClient.post<void>(`${BASE_PATH}/${id}/generate`)
+  generateScenarios(id: string): Promise<undefined> {
+    return apiClient.post<undefined>(`${BASE_PATH}/${id}/generate`)
   },
 
   /**
@@ -67,7 +67,7 @@ export const packagesApi = {
    */
   listRuns(id: string, page = 0, size = 20, signal?: AbortSignal): Promise<PaginatedResponse<TestRun>> {
     return apiClient.get<PaginatedResponse<TestRun>>(
-      `${BASE_PATH}/${id}/runs?page=${page}&size=${size}`,
+      `${BASE_PATH}/${id}/runs?page=${String(page)}&size=${String(size)}`,
       { signal }
     )
   },

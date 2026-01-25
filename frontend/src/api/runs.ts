@@ -14,8 +14,8 @@ export const runsApi = {
   /**
    * Cancel a running test run
    */
-  cancel(id: string): Promise<void> {
-    return apiClient.post<void>(`${BASE_PATH}/${id}/cancel`)
+  cancel(id: string): Promise<undefined> {
+    return apiClient.post<undefined>(`${BASE_PATH}/${id}/cancel`)
   },
 
   /**

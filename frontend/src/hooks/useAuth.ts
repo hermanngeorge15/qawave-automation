@@ -22,7 +22,7 @@ export function useAuth(): AuthState & {
     isLoading: false,
   })
 
-  const login = useCallback(async (_email: string, _password: string) => {
+  const login = useCallback((_email: string, _password: string) => {
     setState((prev) => ({ ...prev, isLoading: true }))
     // TODO: Implement actual login logic
     setState({
@@ -30,6 +30,7 @@ export function useAuth(): AuthState & {
       isAuthenticated: true,
       isLoading: false,
     })
+    return Promise.resolve()
   }, [])
 
   const logout = useCallback(() => {
