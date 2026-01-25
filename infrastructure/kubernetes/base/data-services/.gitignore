@@ -1,0 +1,6 @@
+# Secrets should not be committed
+**/secrets.yaml
+!**/secrets.yaml.example
+
+# Helm chart downloads
+charts/
