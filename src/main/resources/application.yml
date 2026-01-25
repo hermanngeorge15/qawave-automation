@@ -49,6 +49,9 @@ qawave:
   validation:
     max-openapi-length: 100000
     max-scenario-json-size-bytes: 5242880
+  kafka:
+    partitions: 3
+    replication-factor: 1
 
 management:
   endpoints:
