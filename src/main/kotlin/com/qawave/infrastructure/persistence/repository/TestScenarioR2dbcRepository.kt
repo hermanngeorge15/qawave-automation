@@ -80,16 +80,25 @@ interface TestScenarioR2dbcRepository : CoroutineCrudRepository<TestScenarioEnti
     /**
      * Find scenarios by QA package ID with pagination.
      */
-    fun findByQaPackageId(qaPackageId: UUID, pageable: Pageable): Flow<TestScenarioEntity>
+    fun findByQaPackageId(
+        qaPackageId: UUID,
+        pageable: Pageable,
+    ): Flow<TestScenarioEntity>
 
     /**
      * Find scenarios by status with pagination.
      */
-    fun findByStatus(status: String, pageable: Pageable): Flow<TestScenarioEntity>
+    fun findByStatus(
+        status: String,
+        pageable: Pageable,
+    ): Flow<TestScenarioEntity>
 
     /**
      * Find all scenarios ordered by created_at descending with pagination.
      */
     @Query("SELECT * FROM test_scenarios ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
-    fun findAllOrderByCreatedAtDesc(limit: Int, offset: Int): Flow<TestScenarioEntity>
+    fun findAllOrderByCreatedAtDesc(
+        limit: Int,
+        offset: Int,
+    ): Flow<TestScenarioEntity>
 }

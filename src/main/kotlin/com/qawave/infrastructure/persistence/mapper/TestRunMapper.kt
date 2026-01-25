@@ -13,9 +13,8 @@ import java.util.UUID
  */
 @Component
 class TestRunMapper(
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) {
-
     /**
      * Converts an entity to a domain model (without step results).
      */
@@ -32,14 +31,17 @@ class TestRunMapper(
             startedAt = entity.startedAt,
             completedAt = entity.completedAt,
             createdAt = entity.createdAt,
-            updatedAt = entity.updatedAt
+            updatedAt = entity.updatedAt,
         )
     }
 
     /**
      * Converts an entity to a domain model with step results.
      */
-    fun toDomain(entity: TestRunEntity, stepResults: List<TestStepResult>): TestRun {
+    fun toDomain(
+        entity: TestRunEntity,
+        stepResults: List<TestStepResult>,
+    ): TestRun {
         return TestRun(
             id = TestRunId(entity.id!!),
             scenarioId = ScenarioId(entity.scenarioId),
@@ -52,7 +54,7 @@ class TestRunMapper(
             startedAt = entity.startedAt,
             completedAt = entity.completedAt,
             createdAt = entity.createdAt,
-            updatedAt = entity.updatedAt
+            updatedAt = entity.updatedAt,
         )
     }
 
@@ -71,14 +73,17 @@ class TestRunMapper(
             startedAt = domain.startedAt,
             completedAt = domain.completedAt,
             createdAt = domain.createdAt,
-            updatedAt = domain.updatedAt
+            updatedAt = domain.updatedAt,
         )
     }
 
     /**
      * Creates a new entity from a domain model (for insert with predetermined ID).
      */
-    fun toEntityWithId(domain: TestRun, id: UUID): TestRunEntity {
+    fun toEntityWithId(
+        domain: TestRun,
+        id: UUID,
+    ): TestRunEntity {
         return TestRunEntity(
             id = id,
             scenarioId = domain.scenarioId.value,
@@ -90,7 +95,7 @@ class TestRunMapper(
             startedAt = domain.startedAt,
             completedAt = domain.completedAt,
             createdAt = domain.createdAt,
-            updatedAt = Instant.now()
+            updatedAt = Instant.now(),
         )
     }
 

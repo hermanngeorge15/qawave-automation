@@ -6,11 +6,11 @@ import com.qawave.domain.model.QaPackageConfig
  * Templates for AI prompts used in scenario generation and evaluation.
  */
 object PromptTemplates {
-
     /**
      * System prompt for scenario generation.
      */
-    val SCENARIO_GENERATION_SYSTEM = """
+    val SCENARIO_GENERATION_SYSTEM =
+        """
         You are an expert QA engineer specializing in API testing. Your task is to generate
         comprehensive test scenarios for REST APIs based on OpenAPI specifications.
 
@@ -23,12 +23,13 @@ object PromptTemplates {
         - Use realistic test data
 
         Output format: Return valid JSON matching the TestScenario schema.
-    """.trimIndent()
+        """.trimIndent()
 
     /**
      * System prompt for QA evaluation.
      */
-    val QA_EVALUATION_SYSTEM = """
+    val QA_EVALUATION_SYSTEM =
+        """
         You are an expert QA evaluator analyzing test execution results. Your task is to
         provide a comprehensive assessment of API quality based on test results.
 
@@ -40,7 +41,7 @@ object PromptTemplates {
         - Rate quality, stability, and security
 
         Output format: Return valid JSON matching the QaSummary schema.
-    """.trimIndent()
+        """.trimIndent()
 
     /**
      * Generates a prompt for scenario generation.
@@ -48,7 +49,7 @@ object PromptTemplates {
     fun generateScenarioPrompt(
         openApiSpec: String,
         requirements: String?,
-        config: QaPackageConfig
+        config: QaPackageConfig,
     ): String {
         return buildString {
             appendLine("Generate test scenarios for the following API:")
@@ -73,7 +74,8 @@ object PromptTemplates {
 
             appendLine("## Output Requirements")
             appendLine("Generate a JSON array of test scenarios with the following structure:")
-            appendLine("""
+            appendLine(
+                """
                 ```json
                 {
                     "scenarios": [
@@ -99,7 +101,8 @@ object PromptTemplates {
                     ]
                 }
                 ```
-            """.trimIndent())
+                """.trimIndent(),
+            )
         }
     }
 
@@ -108,7 +111,7 @@ object PromptTemplates {
      */
     fun generateEvaluationPrompt(
         scenarioResults: String,
-        coverageReport: String?
+        coverageReport: String?,
     ): String {
         return buildString {
             appendLine("Evaluate the following API test results:")
@@ -129,7 +132,8 @@ object PromptTemplates {
 
             appendLine("## Output Requirements")
             appendLine("Provide a QA evaluation with the following structure:")
-            appendLine("""
+            appendLine(
+                """
                 ```json
                 {
                     "overallVerdict": "PASS|FAIL|PASS_WITH_WARNINGS|ERROR|INCONCLUSIVE",
@@ -163,7 +167,8 @@ object PromptTemplates {
                     }
                 }
                 ```
-            """.trimIndent())
+                """.trimIndent(),
+            )
         }
     }
 
@@ -172,7 +177,7 @@ object PromptTemplates {
      */
     fun generateCoveragePrompt(
         openApiSpec: String,
-        scenarios: String
+        scenarios: String,
     ): String {
         return buildString {
             appendLine("Analyze the test coverage for the following API:")
@@ -189,7 +194,8 @@ object PromptTemplates {
             appendLine()
             appendLine("## Output Requirements")
             appendLine("Provide a coverage analysis with the following structure:")
-            appendLine("""
+            appendLine(
+                """
                 ```json
                 {
                     "totalOperations": 0,
@@ -214,7 +220,8 @@ object PromptTemplates {
                     ]
                 }
                 ```
-            """.trimIndent())
+                """.trimIndent(),
+            )
         }
     }
 }

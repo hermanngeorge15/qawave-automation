@@ -13,9 +13,8 @@ import java.util.UUID
  */
 @Component
 class TestScenarioMapper(
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) {
-
     /**
      * Converts an entity to a domain model.
      */
@@ -31,7 +30,7 @@ class TestScenarioMapper(
             source = ScenarioSource.valueOf(entity.source),
             status = ScenarioStatus.valueOf(entity.status),
             createdAt = entity.createdAt,
-            updatedAt = entity.updatedAt
+            updatedAt = entity.updatedAt,
         )
     }
 
@@ -50,7 +49,7 @@ class TestScenarioMapper(
             source = domain.source.name,
             status = domain.status.name,
             createdAt = domain.createdAt,
-            updatedAt = domain.updatedAt
+            updatedAt = domain.updatedAt,
         )
     }
 
@@ -69,14 +68,17 @@ class TestScenarioMapper(
             source = domain.source.name,
             status = domain.status.name,
             createdAt = domain.createdAt,
-            updatedAt = domain.updatedAt
+            updatedAt = domain.updatedAt,
         )
     }
 
     /**
      * Creates an entity with a specified ID (for insert with predetermined ID).
      */
-    fun toEntityWithId(domain: TestScenario, id: UUID): TestScenarioEntity {
+    fun toEntityWithId(
+        domain: TestScenario,
+        id: UUID,
+    ): TestScenarioEntity {
         return TestScenarioEntity(
             id = id,
             suiteId = domain.suiteId?.value,
@@ -88,7 +90,7 @@ class TestScenarioMapper(
             source = domain.source.name,
             status = domain.status.name,
             createdAt = domain.createdAt,
-            updatedAt = Instant.now()
+            updatedAt = Instant.now(),
         )
     }
 

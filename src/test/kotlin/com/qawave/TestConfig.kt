@@ -15,7 +15,6 @@ import java.time.Instant
  */
 @TestConfiguration
 class TestConfig {
-
     @Bean
     @Primary
     fun testQaPackageService(): QaPackageService = InMemoryQaPackageService()
@@ -38,21 +37,22 @@ class InMemoryQaPackageService : QaPackageService {
         val specContent = command.specContent ?: "openapi: 3.0.0" // Default spec for tests
         val specHash = computeHash(specContent)
 
-        val qaPackage = QaPackage(
-            id = id,
-            name = command.name,
-            description = command.description,
-            specUrl = command.specUrl,
-            specContent = specContent,
-            specHash = specHash,
-            baseUrl = command.baseUrl,
-            requirements = command.requirements,
-            status = QaPackageStatus.REQUESTED,
-            config = command.config,
-            triggeredBy = command.triggeredBy,
-            createdAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
+        val qaPackage =
+            QaPackage(
+                id = id,
+                name = command.name,
+                description = command.description,
+                specUrl = command.specUrl,
+                specContent = specContent,
+                specHash = specHash,
+                baseUrl = command.baseUrl,
+                requirements = command.requirements,
+                status = QaPackageStatus.REQUESTED,
+                config = command.config,
+                triggeredBy = command.triggeredBy,
+                createdAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
         packages[id] = qaPackage
         return qaPackage
     }
@@ -69,7 +69,10 @@ class InMemoryQaPackageService : QaPackageService {
         return packages[id]
     }
 
-    override suspend fun findAll(page: Int, size: Int): Page<QaPackage> {
+    override suspend fun findAll(
+        page: Int,
+        size: Int,
+    ): Page<QaPackage> {
         val allPackages = packages.values.toList()
         val total = allPackages.size.toLong()
         val totalPages = ((total + size - 1) / size).toInt().coerceAtLeast(1)
@@ -80,7 +83,7 @@ class InMemoryQaPackageService : QaPackageService {
             page = page,
             size = size,
             totalElements = total,
-            totalPages = totalPages
+            totalPages = totalPages,
         )
     }
 
@@ -106,45 +109,56 @@ class InMemoryQaPackageService : QaPackageService {
         }
     }
 
-    override suspend fun updateStatus(id: QaPackageId, status: QaPackageStatus): QaPackage {
+    override suspend fun updateStatus(
+        id: QaPackageId,
+        status: QaPackageStatus,
+    ): QaPackage {
         val existing = packages[id] ?: throw PackageNotFoundException(id)
 
         // Validate status transition
-        val validTransitions = mapOf(
-            QaPackageStatus.REQUESTED to setOf(
-                QaPackageStatus.SPEC_FETCHED,
-                QaPackageStatus.FAILED_SPEC_FETCH,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.SPEC_FETCHED to setOf(
-                QaPackageStatus.AI_SUCCESS,
-                QaPackageStatus.FAILED_GENERATION,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.AI_SUCCESS to setOf(
-                QaPackageStatus.EXECUTION_IN_PROGRESS,
-                QaPackageStatus.FAILED_EXECUTION,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.EXECUTION_IN_PROGRESS to setOf(
-                QaPackageStatus.EXECUTION_COMPLETE,
-                QaPackageStatus.FAILED_EXECUTION,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.EXECUTION_COMPLETE to setOf(
-                QaPackageStatus.QA_EVAL_IN_PROGRESS,
-                QaPackageStatus.COMPLETE,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.QA_EVAL_IN_PROGRESS to setOf(
-                QaPackageStatus.QA_EVAL_DONE,
-                QaPackageStatus.COMPLETE,
-                QaPackageStatus.CANCELLED
-            ),
-            QaPackageStatus.QA_EVAL_DONE to setOf(
-                QaPackageStatus.COMPLETE
+        val validTransitions =
+            mapOf(
+                QaPackageStatus.REQUESTED to
+                    setOf(
+                        QaPackageStatus.SPEC_FETCHED,
+                        QaPackageStatus.FAILED_SPEC_FETCH,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.SPEC_FETCHED to
+                    setOf(
+                        QaPackageStatus.AI_SUCCESS,
+                        QaPackageStatus.FAILED_GENERATION,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.AI_SUCCESS to
+                    setOf(
+                        QaPackageStatus.EXECUTION_IN_PROGRESS,
+                        QaPackageStatus.FAILED_EXECUTION,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.EXECUTION_IN_PROGRESS to
+                    setOf(
+                        QaPackageStatus.EXECUTION_COMPLETE,
+                        QaPackageStatus.FAILED_EXECUTION,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.EXECUTION_COMPLETE to
+                    setOf(
+                        QaPackageStatus.QA_EVAL_IN_PROGRESS,
+                        QaPackageStatus.COMPLETE,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.QA_EVAL_IN_PROGRESS to
+                    setOf(
+                        QaPackageStatus.QA_EVAL_DONE,
+                        QaPackageStatus.COMPLETE,
+                        QaPackageStatus.CANCELLED,
+                    ),
+                QaPackageStatus.QA_EVAL_DONE to
+                    setOf(
+                        QaPackageStatus.COMPLETE,
+                    ),
             )
-        )
 
         val allowed = validTransitions[existing.status] ?: emptySet()
         if (status !in allowed && existing.status != status) {
@@ -156,38 +170,49 @@ class InMemoryQaPackageService : QaPackageService {
         return updated
     }
 
-    override suspend fun update(id: QaPackageId, command: UpdateQaPackageCommand): QaPackage {
+    override suspend fun update(
+        id: QaPackageId,
+        command: UpdateQaPackageCommand,
+    ): QaPackage {
         val existing = packages[id] ?: throw PackageNotFoundException(id)
         val newSpecContent = command.specContent ?: existing.specContent
-        val newSpecHash = if (command.specContent != null && newSpecContent != null) {
-            computeHash(newSpecContent)
-        } else {
-            existing.specHash
-        }
+        val newSpecHash =
+            if (command.specContent != null && newSpecContent != null) {
+                computeHash(newSpecContent)
+            } else {
+                existing.specHash
+            }
 
-        val updated = existing.copy(
-            name = command.name ?: existing.name,
-            description = command.description ?: existing.description,
-            specUrl = command.specUrl ?: existing.specUrl,
-            specContent = newSpecContent,
-            specHash = newSpecHash,
-            baseUrl = command.baseUrl ?: existing.baseUrl,
-            requirements = command.requirements ?: existing.requirements,
-            config = command.config ?: existing.config,
-            updatedAt = Instant.now()
-        )
+        val updated =
+            existing.copy(
+                name = command.name ?: existing.name,
+                description = command.description ?: existing.description,
+                specUrl = command.specUrl ?: existing.specUrl,
+                specContent = newSpecContent,
+                specHash = newSpecHash,
+                baseUrl = command.baseUrl ?: existing.baseUrl,
+                requirements = command.requirements ?: existing.requirements,
+                config = command.config ?: existing.config,
+                updatedAt = Instant.now(),
+            )
         packages[id] = updated
         return updated
     }
 
-    override suspend fun setCoverage(id: QaPackageId, coverage: CoverageReport): QaPackage {
+    override suspend fun setCoverage(
+        id: QaPackageId,
+        coverage: CoverageReport,
+    ): QaPackage {
         val existing = packages[id] ?: throw PackageNotFoundException(id)
         val updated = existing.copy(coverage = coverage, updatedAt = Instant.now())
         packages[id] = updated
         return updated
     }
 
-    override suspend fun setQaSummary(id: QaPackageId, summary: QaSummary): QaPackage {
+    override suspend fun setQaSummary(
+        id: QaPackageId,
+        summary: QaSummary,
+    ): QaPackage {
         val existing = packages[id] ?: throw PackageNotFoundException(id)
         val updated = existing.copy(qaSummary = summary, updatedAt = Instant.now())
         packages[id] = updated
@@ -203,25 +228,30 @@ class InMemoryQaPackageService : QaPackageService {
 
     override suspend fun markCompleted(id: QaPackageId): QaPackage {
         val existing = packages[id] ?: throw PackageNotFoundException(id)
-        val updated = existing.copy(
-            status = QaPackageStatus.COMPLETE,
-            completedAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
+        val updated =
+            existing.copy(
+                status = QaPackageStatus.COMPLETE,
+                completedAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
         packages[id] = updated
         return updated
     }
 
-    override suspend fun markFailed(id: QaPackageId, status: QaPackageStatus): QaPackage {
+    override suspend fun markFailed(
+        id: QaPackageId,
+        status: QaPackageStatus,
+    ): QaPackage {
         require(status.name.startsWith("FAILED_") || status == QaPackageStatus.CANCELLED) {
             "Status must be a failure status"
         }
         val existing = packages[id] ?: throw PackageNotFoundException(id)
-        val updated = existing.copy(
-            status = status,
-            completedAt = Instant.now(),
-            updatedAt = Instant.now()
-        )
+        val updated =
+            existing.copy(
+                status = status,
+                completedAt = Instant.now(),
+                updatedAt = Instant.now(),
+            )
         packages[id] = updated
         return updated
     }

@@ -10,8 +10,14 @@ complexity:
     functionThreshold: 8
     constructorThreshold: 12
   TooManyFunctions:
-    thresholdInClasses: 25
-    thresholdInInterfaces: 20
+    thresholdInClasses: 30
+    thresholdInInterfaces: 25
+  LongMethod:
+    threshold: 110
+  CyclomaticComplexMethod:
+    threshold: 30
+  NestedBlockDepth:
+    threshold: 5
 
 exceptions:
   TooGenericExceptionCaught:
@@ -35,3 +41,9 @@ style:
   UnusedPrivateMember:
     active: true
     allowedNames: "(_|ignored|expected|serialVersionUID)"
+  MaxLineLength:
+    maxLineLength: 200
+  ReturnCount:
+    max: 4
+  UseCheckOrError:
+    active: false

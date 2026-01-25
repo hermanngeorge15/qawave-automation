@@ -9,7 +9,6 @@ import java.time.Instant
  * Provides business logic for creating, managing, and querying test scenarios.
  */
 interface ScenarioService {
-
     /**
      * Creates a new test scenario.
      *
@@ -41,7 +40,10 @@ interface ScenarioService {
      * @param size The page size
      * @return A page of scenarios
      */
-    suspend fun findAll(page: Int = 0, size: Int = 20): Page<TestScenario>
+    suspend fun findAll(
+        page: Int = 0,
+        size: Int = 20,
+    ): Page<TestScenario>
 
     /**
      * Streams all scenarios.
@@ -121,7 +123,10 @@ interface ScenarioService {
      * @param command The update command
      * @return The updated scenario
      */
-    suspend fun update(id: ScenarioId, command: UpdateScenarioCommand): TestScenario
+    suspend fun update(
+        id: ScenarioId,
+        command: UpdateScenarioCommand,
+    ): TestScenario
 
     /**
      * Updates the status of a scenario.
@@ -130,7 +135,10 @@ interface ScenarioService {
      * @param status The new status
      * @return The updated scenario
      */
-    suspend fun updateStatus(id: ScenarioId, status: ScenarioStatus): TestScenario
+    suspend fun updateStatus(
+        id: ScenarioId,
+        status: ScenarioStatus,
+    ): TestScenario
 
     /**
      * Marks a scenario as ready for execution.
@@ -214,7 +222,7 @@ data class CreateScenarioCommand(
     val steps: List<TestStep>,
     val tags: Set<String> = emptySet(),
     val source: ScenarioSource,
-    val status: ScenarioStatus = ScenarioStatus.PENDING
+    val status: ScenarioStatus = ScenarioStatus.PENDING,
 ) {
     init {
         require(name.isNotBlank()) { "Scenario name cannot be blank" }
@@ -231,7 +239,7 @@ data class UpdateScenarioCommand(
     val description: String? = null,
     val steps: List<TestStep>? = null,
     val tags: Set<String>? = null,
-    val status: ScenarioStatus? = null
+    val status: ScenarioStatus? = null,
 ) {
     init {
         steps?.let {
