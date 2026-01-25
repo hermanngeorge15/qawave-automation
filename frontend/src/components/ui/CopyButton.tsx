@@ -12,7 +12,9 @@ export function CopyButton({ text, className = '' }: CopyButtonProps) {
     try {
       await navigator.clipboard.writeText(text)
       setCopied(true)
-      setTimeout(() => setCopied(false), 2000)
+      setTimeout(() => {
+        setCopied(false)
+      }, 2000)
     } catch (error) {
       console.error('Failed to copy:', error)
     }
@@ -21,7 +23,9 @@ export function CopyButton({ text, className = '' }: CopyButtonProps) {
   return (
     <button
       type="button"
-      onClick={handleCopy}
+      onClick={() => {
+        void handleCopy()
+      }}
       className={`p-2 rounded hover:bg-secondary-700 transition-colors ${className}`}
       title={copied ? 'Copied!' : 'Copy to clipboard'}
     >

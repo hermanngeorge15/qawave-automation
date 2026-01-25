@@ -92,7 +92,9 @@ function RunDetailPage() {
           <div className="flex gap-2">
             {isRunning && (
               <button
-                onClick={() => cancelRun.mutate(runId)}
+                onClick={() => {
+                  cancelRun.mutate(runId)
+                }}
                 disabled={cancelRun.isPending}
                 className="btn btn-danger disabled:opacity-50"
               >
@@ -101,7 +103,9 @@ function RunDetailPage() {
             )}
             {canRetry && (
               <button
-                onClick={() => retryRun.mutate(runId)}
+                onClick={() => {
+                  retryRun.mutate(runId)
+                }}
                 disabled={retryRun.isPending}
                 className="btn btn-primary disabled:opacity-50"
               >
@@ -131,7 +135,7 @@ function RunDetailPage() {
           <div>
             <dt className="text-sm text-secondary-500">Duration</dt>
             <dd className="text-2xl font-bold text-white">
-              {duration !== null ? `${duration}s` : '-'}
+              {duration !== null ? `${String(duration)}s` : '-'}
             </dd>
           </div>
         </dl>

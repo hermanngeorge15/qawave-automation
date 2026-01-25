@@ -14,7 +14,9 @@ export function Collapsible({ title, children, defaultOpen = false, className = 
     <div className={className}>
       <button
         type="button"
-        onClick={() => setIsOpen(!isOpen)}
+        onClick={() => {
+          setIsOpen(!isOpen)
+        }}
         className="flex items-center justify-between w-full text-left"
       >
         {title}

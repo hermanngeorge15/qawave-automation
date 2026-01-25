@@ -59,7 +59,7 @@ const statusConfig: Record<Status, { label: string; className: string }> = {
 }
 
 export function StatusBadge({ status }: StatusBadgeProps) {
-  const config = statusConfig[status] ?? { label: status, className: 'bg-secondary-500/10 text-secondary-400' }
+  const config = statusConfig[status]
 
   return (
     <span
