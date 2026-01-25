@@ -32,11 +32,13 @@ logs/
 
 # Gradle
 .gradle/
-# Keep gradle wrapper committed - don't ignore gradle/wrapper/
+# Keep gradle wrapper committed
+!gradle/wrapper/gradle-wrapper.jar
 
 # Kotlin/Java
 *.class
 *.jar
+!gradle/wrapper/gradle-wrapper.jar
 *.war
 
 # Frontend
