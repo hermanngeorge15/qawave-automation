@@ -2,6 +2,7 @@ package com.qawave.infrastructure.persistence.repository
 
 import com.qawave.infrastructure.persistence.entity.QaPackageEntity
 import kotlinx.coroutines.flow.Flow
+import org.springframework.data.domain.Pageable
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import org.springframework.stereotype.Repository
@@ -14,7 +15,6 @@ import java.util.UUID
  */
 @Repository
 interface QaPackageR2dbcRepository : CoroutineCrudRepository<QaPackageEntity, UUID> {
-
     /**
      * Find all packages with a specific status.
      */
@@ -44,15 +44,47 @@ interface QaPackageR2dbcRepository : CoroutineCrudRepository<QaPackageEntity, UU
     /**
      * Find incomplete packages (not in terminal status).
      */
-    @Query("""
+    @Query(
+        """
         SELECT * FROM qa_packages
         WHERE status NOT IN ('COMPLETE', 'FAILED_SPEC_FETCH', 'FAILED_GENERATION', 'FAILED_EXECUTION', 'CANCELLED')
         ORDER BY created_at DESC
-    """)
+    """,
+    )
     fun findIncompletePackages(): Flow<QaPackageEntity>
 
     /**
      * Count packages by status.
      */
     suspend fun countByStatus(status: String): Long
+
+    /**
+     * Find all packages with pagination.
+     */
+    fun findAllBy(pageable: Pageable): Flow<QaPackageEntity>
+
+    /**
+     * Find packages by status with pagination.
+     */
+    fun findByStatus(
+        status: String,
+        pageable: Pageable,
+    ): Flow<QaPackageEntity>
+
+    /**
+     * Find packages triggered by a user with pagination.
+     */
+    fun findByTriggeredBy(
+        triggeredBy: String,
+        pageable: Pageable,
+    ): Flow<QaPackageEntity>
+
+    /**
+     * Find all packages ordered by created_at descending with pagination.
+     */
+    @Query("SELECT * FROM qa_packages ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
+    fun findAllOrderByCreatedAtDesc(
+        limit: Int,
+        offset: Int,
+    ): Flow<QaPackageEntity>
 }

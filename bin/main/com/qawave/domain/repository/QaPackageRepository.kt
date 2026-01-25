@@ -11,13 +11,22 @@ import java.time.Instant
  */
 interface QaPackageRepository {
     suspend fun save(qaPackage: QaPackage): QaPackage
+
     suspend fun findById(id: QaPackageId): QaPackage?
+
     fun findAll(): Flow<QaPackage>
+
     suspend fun findByStatus(status: QaPackageStatus): List<QaPackage>
+
     fun findIncomplete(): Flow<QaPackage>
+
     fun findRecent(since: Instant): Flow<QaPackage>
+
     suspend fun delete(id: QaPackageId): Boolean
+
     suspend fun existsById(id: QaPackageId): Boolean
+
     suspend fun count(): Long
+
     suspend fun countByStatus(status: QaPackageStatus): Long
 }
