@@ -6,7 +6,6 @@ dist
 dist-ssr
 
 # Generated files
-src/routeTree.gen.ts
 *.tsbuildinfo
 vite.config.d.ts
 vite.config.d.ts.map
