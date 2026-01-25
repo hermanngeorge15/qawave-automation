@@ -94,11 +94,18 @@ interface TestStepResultR2dbcRepository : CoroutineCrudRepository<TestStepResult
     /**
      * Find step results by run ID with pagination.
      */
-    fun findByRunId(runId: UUID, pageable: Pageable): Flow<TestStepResultEntity>
+    fun findByRunId(
+        runId: UUID,
+        pageable: Pageable,
+    ): Flow<TestStepResultEntity>
 
     /**
      * Find step results by run ID ordered by step index with pagination.
      */
     @Query("SELECT * FROM test_step_results WHERE run_id = :runId ORDER BY step_index ASC LIMIT :limit OFFSET :offset")
-    fun findByRunIdOrderByStepIndex(runId: UUID, limit: Int, offset: Int): Flow<TestStepResultEntity>
+    fun findByRunIdOrderByStepIndex(
+        runId: UUID,
+        limit: Int,
+        offset: Int,
+    ): Flow<TestStepResultEntity>
 }

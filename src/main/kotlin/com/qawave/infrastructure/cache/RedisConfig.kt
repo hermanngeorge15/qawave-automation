@@ -89,9 +89,7 @@ class RedisConfig(
      * Creates a string-only reactive Redis template for simple caching.
      */
     @Bean
-    fun reactiveStringRedisTemplate(
-        connectionFactory: ReactiveRedisConnectionFactory,
-    ): ReactiveRedisTemplate<String, String> {
+    fun reactiveStringRedisTemplate(connectionFactory: ReactiveRedisConnectionFactory): ReactiveRedisTemplate<String, String> {
         val serializer = StringRedisSerializer()
 
         val serializationContext =

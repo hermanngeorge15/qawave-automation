@@ -4,16 +4,14 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.qawave.application.service.ExecutionContext
 import com.qawave.domain.model.*
-import kotlinx.coroutines.reactive.awaitFirstOrNull
 import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
-import org.springframework.http.HttpMethod as SpringHttpMethod
 import org.springframework.stereotype.Component
 import org.springframework.web.reactive.function.client.WebClient
 import org.springframework.web.reactive.function.client.awaitBodyOrNull
 import org.springframework.web.reactive.function.client.awaitExchange
-import java.time.Duration
 import java.time.Instant
+import org.springframework.http.HttpMethod as SpringHttpMethod
 
 /**
  * Executes HTTP requests for test steps using WebClient.
@@ -21,9 +19,8 @@ import java.time.Instant
 @Component
 class HttpStepExecutor(
     private val webClient: WebClient,
-    private val objectMapper: ObjectMapper
+    private val objectMapper: ObjectMapper,
 ) {
-
     private val logger = LoggerFactory.getLogger(HttpStepExecutor::class.java)
 
     /**
@@ -33,7 +30,7 @@ class HttpStepExecutor(
         runId: TestRunId,
         step: TestStep,
         baseUrl: String,
-        context: ExecutionContext
+        context: ExecutionContext,
     ): TestStepResult {
         val startTime = System.currentTimeMillis()
         val executedAt = Instant.now()
@@ -45,15 +42,16 @@ class HttpStepExecutor(
 
             logger.debug("Executing step {}: {} {}", step.index, step.method, url)
 
-            val result = withTimeoutOrNull(step.timeoutMs) {
-                executeRequest(runId, step, url, body, headers, startTime, executedAt)
-            }
+            val result =
+                withTimeoutOrNull(step.timeoutMs) {
+                    executeRequest(runId, step, url, body, headers, startTime, executedAt)
+                }
 
             return result ?: TestStepResult.timeout(
                 runId = runId,
                 step = step,
                 durationMs = System.currentTimeMillis() - startTime,
-                executedAt = executedAt
+                executedAt = executedAt,
             )
         } catch (e: Exception) {
             logger.error("Error executing step {}: {}", step.index, e.message)
@@ -62,7 +60,7 @@ class HttpStepExecutor(
                 step = step,
                 error = e,
                 durationMs = System.currentTimeMillis() - startTime,
-                executedAt = executedAt
+                executedAt = executedAt,
             )
         }
     }
@@ -74,27 +72,29 @@ class HttpStepExecutor(
         body: String?,
         headers: Map<String, String>,
         startTime: Long,
-        executedAt: Instant
+        executedAt: Instant,
     ): TestStepResult {
         val method = toSpringHttpMethod(step.method)
 
-        val response = webClient
-            .method(method)
-            .uri(url)
-            .apply {
-                headers.forEach { (k, v) -> header(k, v) }
-                if (body != null) {
-                    bodyValue(body)
+        val response =
+            webClient
+                .method(method)
+                .uri(url)
+                .apply {
+                    headers.forEach { (k, v) -> header(k, v) }
+                    if (body != null) {
+                        bodyValue(body)
+                    }
                 }
-            }
-            .awaitExchange { response ->
-                val statusCode = response.statusCode().value()
-                val responseHeaders = response.headers().asHttpHeaders()
-                    .toSingleValueMap()
-                val responseBody = response.awaitBodyOrNull<String>()
+                .awaitExchange { response ->
+                    val statusCode = response.statusCode().value()
+                    val responseHeaders =
+                        response.headers().asHttpHeaders()
+                            .toSingleValueMap()
+                    val responseBody = response.awaitBodyOrNull<String>()
 
-                Triple(statusCode, responseHeaders, responseBody)
-            }
+                    Triple(statusCode, responseHeaders, responseBody)
+                }
 
         val (statusCode, responseHeaders, responseBody) = response
         val durationMs = System.currentTimeMillis() - startTime
@@ -118,7 +118,7 @@ class HttpStepExecutor(
             extractedValues = extractedValues,
             errorMessage = null,
             durationMs = durationMs,
-            executedAt = executedAt
+            executedAt = executedAt,
         )
     }
 
@@ -126,7 +126,7 @@ class HttpStepExecutor(
         expected: ExpectedResult,
         statusCode: Int,
         headers: Map<String, String>,
-        body: String?
+        body: String?,
     ): List<AssertionResult> {
         val assertions = mutableListOf<AssertionResult>()
 
@@ -139,8 +139,8 @@ class HttpStepExecutor(
                     expected = expectedStatus.toString(),
                     actual = statusCode.toString(),
                     passed = statusCode == expectedStatus,
-                    message = if (statusCode == expectedStatus) null else "Expected status $expectedStatus but got $statusCode"
-                )
+                    message = if (statusCode == expectedStatus) null else "Expected status $expectedStatus but got $statusCode",
+                ),
             )
         }
 
@@ -153,8 +153,8 @@ class HttpStepExecutor(
                     expected = "${range.first}-${range.last}",
                     actual = statusCode.toString(),
                     passed = statusCode in range,
-                    message = if (statusCode in range) null else "Expected status in range ${range.first}-${range.last} but got $statusCode"
-                )
+                    message = if (statusCode in range) null else "Expected status in range ${range.first}-${range.last} but got $statusCode",
+                ),
             )
         }
 
@@ -168,8 +168,8 @@ class HttpStepExecutor(
                     expected = expectedString,
                     actual = if (contains) "found" else "not found",
                     passed = contains,
-                    message = if (contains) null else "Body does not contain '$expectedString'"
-                )
+                    message = if (contains) null else "Body does not contain '$expectedString'",
+                ),
             )
         }
 
@@ -191,15 +191,19 @@ class HttpStepExecutor(
                     expected = expectedValue,
                     actual = actualValue,
                     passed = matches,
-                    message = if (matches) null else "Header '$headerName' expected '$expectedValue' but got '$actualValue'"
-                )
+                    message = if (matches) null else "Header '$headerName' expected '$expectedValue' but got '$actualValue'",
+                ),
             )
         }
 
         return assertions
     }
 
-    private fun assertField(json: JsonNode?, field: String, matcher: FieldMatcher): AssertionResult {
+    private fun assertField(
+        json: JsonNode?,
+        field: String,
+        matcher: FieldMatcher,
+    ): AssertionResult {
         val value = getJsonValue(json, field)
         val valueStr = value?.asText()
 
@@ -212,7 +216,7 @@ class HttpStepExecutor(
                     expected = matcher.value.toString(),
                     actual = valueStr,
                     passed = matches,
-                    message = if (matches) null else "Field '$field' expected '${matcher.value}' but got '$valueStr'"
+                    message = if (matches) null else "Field '$field' expected '${matcher.value}' but got '$valueStr'",
                 )
             }
             is FieldMatcher.Any -> {
@@ -223,7 +227,7 @@ class HttpStepExecutor(
                     expected = "exists",
                     actual = if (exists) "exists" else "missing",
                     passed = exists,
-                    message = if (exists) null else "Field '$field' does not exist"
+                    message = if (exists) null else "Field '$field' does not exist",
                 )
             }
             is FieldMatcher.Regex -> {
@@ -234,7 +238,7 @@ class HttpStepExecutor(
                     expected = matcher.pattern,
                     actual = valueStr,
                     passed = matches,
-                    message = if (matches) null else "Field '$field' does not match pattern '${matcher.pattern}'"
+                    message = if (matches) null else "Field '$field' does not match pattern '${matcher.pattern}'",
                 )
             }
             is FieldMatcher.GreaterThan -> {
@@ -246,7 +250,7 @@ class HttpStepExecutor(
                     expected = "> ${matcher.value}",
                     actual = valueStr,
                     passed = matches,
-                    message = if (matches) null else "Field '$field' expected > ${matcher.value} but got '$valueStr'"
+                    message = if (matches) null else "Field '$field' expected > ${matcher.value} but got '$valueStr'",
                 )
             }
             is FieldMatcher.LessThan -> {
@@ -258,7 +262,7 @@ class HttpStepExecutor(
                     expected = "< ${matcher.value}",
                     actual = valueStr,
                     passed = matches,
-                    message = if (matches) null else "Field '$field' expected < ${matcher.value} but got '$valueStr'"
+                    message = if (matches) null else "Field '$field' expected < ${matcher.value} but got '$valueStr'",
                 )
             }
             is FieldMatcher.OneOf -> {
@@ -269,7 +273,14 @@ class HttpStepExecutor(
                     expected = matcher.values.joinToString(", "),
                     actual = valueStr,
                     passed = matches,
-                    message = if (matches) null else "Field '$field' expected one of [${matcher.values.joinToString(", ")}] but got '$valueStr'"
+                    message =
+                        if (matches) {
+                            null
+                        } else {
+                            "Field '$field' expected one of [${matcher.values.joinToString(
+                                ", ",
+                            )}] but got '$valueStr'"
+                        },
                 )
             }
             is FieldMatcher.NotNull -> {
@@ -280,7 +291,7 @@ class HttpStepExecutor(
                     expected = "not null",
                     actual = if (notNull) "not null" else "null",
                     passed = notNull,
-                    message = if (notNull) null else "Field '$field' is null"
+                    message = if (notNull) null else "Field '$field' is null",
                 )
             }
             is FieldMatcher.IsNull -> {
@@ -291,13 +302,16 @@ class HttpStepExecutor(
                     expected = "null",
                     actual = if (isNull) "null" else "not null",
                     passed = isNull,
-                    message = if (isNull) null else "Field '$field' is not null"
+                    message = if (isNull) null else "Field '$field' is not null",
                 )
             }
         }
     }
 
-    private fun extractValues(extractions: Map<String, String>, body: String?): Map<String, String> {
+    private fun extractValues(
+        extractions: Map<String, String>,
+        body: String?,
+    ): Map<String, String> {
         val json = parseJson(body) ?: return emptyMap()
         val extracted = mutableMapOf<String, String>()
 
@@ -319,22 +333,26 @@ class HttpStepExecutor(
         }
     }
 
-    private fun getJsonValue(json: JsonNode?, path: String): JsonNode? {
+    private fun getJsonValue(
+        json: JsonNode?,
+        path: String,
+    ): JsonNode? {
         if (json == null) return null
 
         val parts = path.split(".")
         var current: JsonNode? = json
 
         for (part in parts) {
-            current = when {
-                current == null -> null
-                part.contains("[") && part.contains("]") -> {
-                    val name = part.substringBefore("[")
-                    val index = part.substringAfter("[").substringBefore("]").toIntOrNull() ?: return null
-                    current.get(name)?.get(index)
+            current =
+                when {
+                    current == null -> null
+                    part.contains("[") && part.contains("]") -> {
+                        val name = part.substringBefore("[")
+                        val index = part.substringAfter("[").substringBefore("]").toIntOrNull() ?: return null
+                        current.get(name)?.get(index)
+                    }
+                    else -> current.get(part)
                 }
-                else -> current.get(part)
-            }
         }
 
         return current
