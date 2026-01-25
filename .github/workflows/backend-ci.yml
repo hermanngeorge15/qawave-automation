@@ -125,8 +125,10 @@ jobs:
           distribution: 'temurin'
           cache: 'gradle'
 
+      - name: Grant execute permission for gradlew
+        run: chmod +x gradlew
+
       - name: Build JAR
-        working-directory: backend
         run: ./gradlew bootJar --no-daemon
 
       - name: Set up Docker Buildx
@@ -154,7 +156,7 @@ jobs:
       - name: Build and push
         uses: docker/build-push-action@v5
         with:
-          context: backend
+          context: .
           push: ${{ github.event_name != 'pull_request' }}
           tags: ${{ steps.meta.outputs.tags }}
           labels: ${{ steps.meta.outputs.labels }}
