@@ -279,8 +279,8 @@ class TestExecutionServiceImpl(
             runRepository.findById(id.value)
                 ?: throw TestRunNotFoundException(id)
 
-        if (existing.status in listOf("PASSED", "FAILED", "ERROR", "CANCELLED")) {
-            throw IllegalStateException("Cannot cancel a completed test run")
+        check(existing.status !in listOf("PASSED", "FAILED", "ERROR", "CANCELLED")) {
+            "Cannot cancel a completed test run"
         }
 
         val updated =

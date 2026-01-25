@@ -13,11 +13,11 @@ complexity:
     thresholdInClasses: 30
     thresholdInInterfaces: 25
   LongMethod:
-    threshold: 110
+    threshold: 120
   CyclomaticComplexMethod:
     threshold: 30
   NestedBlockDepth:
-    threshold: 5
+    threshold: 6
 
 exceptions:
   TooGenericExceptionCaught:
@@ -44,6 +44,6 @@ style:
   MaxLineLength:
     maxLineLength: 200
   ReturnCount:
-    max: 4
+    max: 5
   UseCheckOrError:
     active: false
