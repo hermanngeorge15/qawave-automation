@@ -16,18 +16,12 @@ jobs:
       release_created: ${{ steps.release.outputs.release_created }}
       tag_name: ${{ steps.release.outputs.tag_name }}
       version: ${{ steps.release.outputs.version }}
-      # Monorepo outputs
-      qawave--release_created: ${{ steps.release.outputs['qawave--release_created'] }}
-      backend--release_created: ${{ steps.release.outputs['backend--release_created'] }}
-      frontend--release_created: ${{ steps.release.outputs['frontend--release_created'] }}
     steps:
       - name: Run Release Please
         id: release
         uses: googleapis/release-please-action@v4
         with:
           token: ${{ secrets.GITHUB_TOKEN }}
-          config-file: release-please-config.json
-          manifest-file: .release-please-manifest.json
 
   # Build and tag Docker images on release
   publish-release:
@@ -58,28 +52,13 @@ jobs:
           username: ${{ github.actor }}
           password: ${{ secrets.GITHUB_TOKEN }}
 
-      # Build and push backend image with version tag
       - name: Build and push backend
-        if: ${{ needs.release-please.outputs['backend--release_created'] || needs.release-please.outputs.release_created }}
         uses: docker/build-push-action@v5
         with:
-          context: backend
+          context: .
           push: true
           tags: |
             ghcr.io/${{ github.repository }}/backend:${{ needs.release-please.outputs.version }}
             ghcr.io/${{ github.repository }}/backend:latest
-          cache-from: type=gha
-          cache-to: type=gha,mode=max
-
-      # Build and push frontend image with version tag
-      - name: Build and push frontend
-        if: ${{ needs.release-please.outputs['frontend--release_created'] || needs.release-please.outputs.release_created }}
-        uses: docker/build-push-action@v5
-        with:
-          context: frontend
-          push: true
-          tags: |
-            ghcr.io/${{ github.repository }}/frontend:${{ needs.release-please.outputs.version }}
-            ghcr.io/${{ github.repository }}/frontend:latest
           cache-from: type=gha
           cache-to: type=gha,mode=max
