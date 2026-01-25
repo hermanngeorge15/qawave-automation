@@ -44,7 +44,7 @@ jobs:
           --health-retries 5
 
       kafka:
-        image: bitnami/kafka:3.6
+        image: bitnami/kafka:3.6.2
         env:
           KAFKA_CFG_NODE_ID: 0
           KAFKA_CFG_PROCESS_ROLES: controller,broker
