@@ -1,0 +1,76 @@
+name: Bug Report
+description: Report a bug found during development or testing
+title: "[BUG] "
+labels: ["bug", "triage"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        ## Bug Report
+        Please provide as much detail as possible.
+
+  - type: dropdown
+    id: component
+    attributes:
+      label: Component
+      options:
+        - Backend
+        - Frontend
+        - Infrastructure
+        - E2E Tests
+        - Database
+        - CI/CD
+    validations:
+      required: true
+
+  - type: dropdown
+    id: severity
+    attributes:
+      label: Severity
+      options:
+        - Critical (system down)
+        - High (major feature broken)
+        - Medium (feature partially broken)
+        - Low (minor issue)
+    validations:
+      required: true
+
+  - type: textarea
+    id: description
+    attributes:
+      label: Bug Description
+      description: What's happening vs what should happen?
+      placeholder: |
+        **Expected**: The API should return 200 OK
+        **Actual**: The API returns 500 Internal Server Error
+    validations:
+      required: true
+
+  - type: textarea
+    id: steps
+    attributes:
+      label: Steps to Reproduce
+      description: How can we reproduce this bug?
+      value: |
+        1. 
+        2. 
+        3. 
+    validations:
+      required: true
+
+  - type: textarea
+    id: logs
+    attributes:
+      label: Logs / Screenshots
+      description: Paste relevant logs or attach screenshots
+      placeholder: |
+        ```
+        Error logs here...
+        ```
+
+  - type: input
+    id: environment
+    attributes:
+      label: Environment
+      description: Where did this occur?
+      placeholder: "Local / Staging / Production"

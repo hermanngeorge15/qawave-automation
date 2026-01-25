@@ -1,0 +1,140 @@
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: qawave
+  namespace: argocd
+spec:
+  description: QAWave Application Project
+  sourceRepos:
+    - 'https://github.com/your-org/qawave.git'
+  destinations:
+    - namespace: qawave
+      server: https://kubernetes.default.svc
+    - namespace: qawave-staging
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: networking.k8s.io
+      kind: Ingress
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: '*'
+    - group: apps
+      kind: '*'
+    - group: autoscaling
+      kind: '*'
+    - group: policy
+      kind: '*'
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qawave-backend-production
+  namespace: argocd
+  labels:
+    app: qawave
+    component: backend
+    environment: production
+spec:
+  project: qawave
+  source:
+    repoURL: https://github.com/your-org/qawave.git
+    targetRevision: main
+    path: infrastructure/kubernetes/overlays/production
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: qawave
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - PruneLast=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  revisionHistoryLimit: 10
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qawave-backend-staging
+  namespace: argocd
+  labels:
+    app: qawave
+    component: backend
+    environment: staging
+spec:
+  project: qawave
+  source:
+    repoURL: https://github.com/your-org/qawave.git
+    targetRevision: main
+    path: infrastructure/kubernetes/overlays/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: qawave-staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qawave-frontend-production
+  namespace: argocd
+  labels:
+    app: qawave
+    component: frontend
+    environment: production
+spec:
+  project: qawave
+  source:
+    repoURL: https://github.com/your-org/qawave.git
+    targetRevision: main
+    path: infrastructure/kubernetes/overlays/production
+    kustomize:
+      images:
+        - ghcr.io/your-org/qawave/frontend
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: qawave
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qawave-data-services
+  namespace: argocd
+  labels:
+    app: qawave
+    component: data-services
+spec:
+  project: qawave
+  source:
+    repoURL: https://github.com/your-org/qawave.git
+    targetRevision: main
+    path: infrastructure/kubernetes/base/data-services
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: qawave
+  syncPolicy:
+    automated:
+      prune: false  # Don't auto-delete stateful services
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

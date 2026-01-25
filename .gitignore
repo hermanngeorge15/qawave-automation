@@ -1,0 +1,63 @@
+# macOS
+.DS_Store
+*.DS_Store
+
+# IDE
+.idea/
+.vscode/
+*.iml
+
+# Environment files
+.env
+.env.local
+.env.*.local
+
+# Node
+node_modules/
+
+# Build outputs
+build/
+dist/
+target/
+out/
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+*.tmp
+*.temp
+.cache/
+
+# Gradle
+.gradle/
+gradle/wrapper/
+
+# Kotlin/Java
+*.class
+*.jar
+*.war
+
+# Frontend
+coverage/
+.next/
+.nuxt/
+
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.backup
+*.tfvars
+!*.tfvars.example
+
+# Kubernetes
+kubeconfig
+*.kubeconfig
+
+# Secrets (never commit)
+secrets/
+*secret*
+*credential*
+*.pem
+*.key

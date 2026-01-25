@@ -1,0 +1,40 @@
+# QAWave CODEOWNERS
+# Each agent owns specific parts of the codebase
+
+# Default owner for everything not specified
+* @orchestrator-agent
+
+# Backend Agent
+/backend/ @backend-agent
+/api-specs/ @backend-agent
+
+# Frontend Agent
+/frontend/ @frontend-agent
+
+# DevOps Agent
+/infrastructure/ @devops-agent
+/.github/workflows/ @devops-agent
+/docker-compose.yml @devops-agent
+Dockerfile @devops-agent
+
+# QA Agent
+/e2e-tests/ @qa-agent
+
+# Security Agent
+/security/ @security-agent
+
+# Database Agent
+/backend/src/main/resources/db/ @database-agent
+
+# Documentation
+/docs/ @orchestrator-agent
+/docs/agents/BACKEND.md @backend-agent
+/docs/agents/FRONTEND.md @frontend-agent
+/docs/agents/DEVOPS.md @devops-agent
+/docs/agents/QA.md @qa-agent
+/docs/agents/SECURITY.md @security-agent
+/docs/agents/DATABASE.md @database-agent
+
+# Root config files
+/CLAUDE.md @orchestrator-agent
+/README.md @orchestrator-agent
