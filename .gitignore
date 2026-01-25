@@ -32,7 +32,7 @@ logs/
 
 # Gradle
 .gradle/
-gradle/wrapper/
+# Keep gradle wrapper committed - don't ignore gradle/wrapper/
 
 # Kotlin/Java
 *.class
