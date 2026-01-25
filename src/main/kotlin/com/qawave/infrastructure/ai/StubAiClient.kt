@@ -11,7 +11,7 @@ import org.springframework.stereotype.Component
  * Stub AI client for testing and development.
  * Returns predefined responses without making actual API calls.
  */
-@Component
+@Component("stubAiClient")
 @ConditionalOnProperty(name = ["qawave.ai.provider"], havingValue = "stub")
 class StubAiClient : AiClient {
 

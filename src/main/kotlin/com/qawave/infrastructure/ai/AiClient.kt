@@ -3,32 +3,22 @@ package com.qawave.infrastructure.ai
 import kotlinx.coroutines.flow.Flow
 
 /**
- * Interface for AI provider clients.
- * Provides suspend functions for non-blocking AI interactions.
+ * Interface for AI completion clients.
+ * Supports both synchronous completion and streaming responses.
  */
 interface AiClient {
-
     /**
-     * Generates a completion for the given prompt.
-     *
-     * @param request The completion request
-     * @return The AI response
+     * Sends a completion request and returns the full response.
      */
     suspend fun complete(request: AiCompletionRequest): AiCompletionResponse
 
     /**
-     * Generates a streaming completion for the given prompt.
-     * Returns chunks of the response as they are generated.
-     *
-     * @param request The completion request
-     * @return Flow of response chunks
+     * Sends a completion request and returns a stream of response chunks.
      */
     fun completeStream(request: AiCompletionRequest): Flow<AiStreamChunk>
 
     /**
-     * Checks if the AI provider is available.
-     *
-     * @return true if the provider is healthy
+     * Checks if the AI client is healthy and able to process requests.
      */
     suspend fun isHealthy(): Boolean
 }
@@ -58,7 +48,7 @@ data class AiCompletionResponse(
 )
 
 /**
- * A chunk of streaming response.
+ * A chunk from a streaming AI response.
  */
 data class AiStreamChunk(
     val content: String,
@@ -67,17 +57,17 @@ data class AiStreamChunk(
 )
 
 /**
- * Reason for completion finish.
+ * Reason for completion finishing.
  */
 enum class FinishReason {
-    STOP,
-    LENGTH,
-    CONTENT_FILTER,
-    ERROR
+    STOP,           // Natural end of generation
+    LENGTH,         // Max tokens reached
+    CONTENT_FILTER, // Content was filtered
+    ERROR           // An error occurred
 }
 
 /**
- * Exception thrown when AI completion fails.
+ * Base exception for AI client errors.
  */
 open class AiClientException(
     message: String,
@@ -85,7 +75,7 @@ open class AiClientException(
 ) : RuntimeException(message, cause)
 
 /**
- * Exception thrown when rate limited by AI provider.
+ * Exception for rate limiting from AI provider.
  */
 class AiRateLimitException(
     message: String,
@@ -93,10 +83,9 @@ class AiRateLimitException(
 ) : AiClientException(message)
 
 /**
- * Exception thrown when AI provider returns an error.
+ * Exception for AI provider errors (5xx responses).
  */
 class AiProviderException(
     message: String,
-    val statusCode: Int,
-    cause: Throwable? = null
-) : AiClientException(message, cause)
+    val statusCode: Int
+) : AiClientException(message)
