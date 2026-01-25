@@ -12,7 +12,6 @@ import org.springframework.stereotype.Component
  */
 @Component
 class AiFallbackHandler {
-
     private val logger = LoggerFactory.getLogger(AiFallbackHandler::class.java)
 
     /**
@@ -20,24 +19,25 @@ class AiFallbackHandler {
      */
     fun handleCompletionFallback(
         request: AiCompletionRequest,
-        cause: Throwable
+        cause: Throwable,
     ): AiCompletionResponse {
         logger.warn(
             "Returning fallback response for AI completion. Cause: {} - {}",
             cause::class.simpleName,
-            cause.message
+            cause.message,
         )
 
-        val fallbackContent = when {
-            request.prompt.contains("scenario", ignoreCase = true) ->
-                generateScenarioFallback()
-            request.prompt.contains("evaluate", ignoreCase = true) ->
-                generateEvaluationFallback()
-            request.prompt.contains("coverage", ignoreCase = true) ->
-                generateCoverageFallback()
-            else ->
-                generateGenericFallback()
-        }
+        val fallbackContent =
+            when {
+                request.prompt.contains("scenario", ignoreCase = true) ->
+                    generateScenarioFallback()
+                request.prompt.contains("evaluate", ignoreCase = true) ->
+                    generateEvaluationFallback()
+                request.prompt.contains("coverage", ignoreCase = true) ->
+                    generateCoverageFallback()
+                else ->
+                    generateGenericFallback()
+            }
 
         return AiCompletionResponse(
             content = fallbackContent,
@@ -45,7 +45,7 @@ class AiFallbackHandler {
             promptTokens = 0,
             completionTokens = 0,
             totalTokens = 0,
-            finishReason = FinishReason.ERROR
+            finishReason = FinishReason.ERROR,
         )
     }
 
@@ -58,66 +58,66 @@ class AiFallbackHandler {
 
     private fun generateScenarioFallback(): String {
         return """
-        {
-            "scenarios": [],
-            "error": "AI service temporarily unavailable. No scenarios could be generated.",
-            "fallback": true
-        }
-        """.trimIndent()
+            {
+                "scenarios": [],
+                "error": "AI service temporarily unavailable. No scenarios could be generated.",
+                "fallback": true
+            }
+            """.trimIndent()
     }
 
     private fun generateEvaluationFallback(): String {
         return """
-        {
-            "overallVerdict": "INCONCLUSIVE",
-            "summary": "Unable to evaluate test results - AI service temporarily unavailable.",
-            "passedScenarios": 0,
-            "failedScenarios": 0,
-            "erroredScenarios": 0,
-            "keyFindings": [],
-            "recommendations": [{
-                "priority": "IMMEDIATE",
-                "title": "Retry evaluation",
-                "description": "AI service was unavailable during evaluation. Please retry.",
-                "actionItems": ["Wait a few minutes and retry the evaluation"]
-            }],
-            "riskAssessment": {
-                "overallRisk": "MEDIUM",
-                "qualityScore": 0,
-                "stabilityScore": 0,
-                "securityScore": 0,
-                "riskFactors": ["Unable to complete AI evaluation"]
-            },
-            "fallback": true
-        }
-        """.trimIndent()
+            {
+                "overallVerdict": "INCONCLUSIVE",
+                "summary": "Unable to evaluate test results - AI service temporarily unavailable.",
+                "passedScenarios": 0,
+                "failedScenarios": 0,
+                "erroredScenarios": 0,
+                "keyFindings": [],
+                "recommendations": [{
+                    "priority": "IMMEDIATE",
+                    "title": "Retry evaluation",
+                    "description": "AI service was unavailable during evaluation. Please retry.",
+                    "actionItems": ["Wait a few minutes and retry the evaluation"]
+                }],
+                "riskAssessment": {
+                    "overallRisk": "MEDIUM",
+                    "qualityScore": 0,
+                    "stabilityScore": 0,
+                    "securityScore": 0,
+                    "riskFactors": ["Unable to complete AI evaluation"]
+                },
+                "fallback": true
+            }
+            """.trimIndent()
     }
 
     private fun generateCoverageFallback(): String {
         return """
-        {
-            "totalOperations": 0,
-            "coveredOperations": 0,
-            "coveragePercentage": 0.0,
-            "operationDetails": [],
-            "gaps": [{
-                "type": "UNCOVERED_OPERATION",
-                "operationId": null,
-                "description": "Coverage analysis unavailable - AI service temporarily unavailable",
-                "severity": "MEDIUM"
-            }],
-            "fallback": true
-        }
-        """.trimIndent()
+            {
+                "totalOperations": 0,
+                "coveredOperations": 0,
+                "coveragePercentage": 0.0,
+                "operationDetails": [],
+                "gaps": [{
+                    "type": "UNCOVERED_OPERATION",
+                    "operationId": null,
+                    "description": "Coverage analysis unavailable - AI service temporarily unavailable",
+                    "severity": "MEDIUM"
+                }],
+                "fallback": true
+            }
+            """.trimIndent()
     }
 
     private fun generateGenericFallback(): String {
         return """
-        {
-            "error": "AI service temporarily unavailable",
-            "message": "Please try again later.",
-            "fallback": true
-        }
-        """.trimIndent()
+            {
+                "error": "AI service temporarily unavailable",
+                "message": "Please try again later.",
+                "fallback": true
+            }
+            """.trimIndent()
     }
 }

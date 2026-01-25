@@ -27,12 +27,12 @@ import kotlin.test.assertTrue
 @SpringBootTest
 @Testcontainers
 class RedisIntegrationTest {
-
     companion object {
         @Container
         @JvmStatic
-        val redisContainer: GenericContainer<*> = GenericContainer(DockerImageName.parse("redis:7-alpine"))
-            .withExposedPorts(6379)
+        val redisContainer: GenericContainer<*> =
+            GenericContainer(DockerImageName.parse("redis:7-alpine"))
+                .withExposedPorts(6379)
 
         @DynamicPropertySource
         @JvmStatic
@@ -58,125 +58,137 @@ class RedisIntegrationTest {
     }
 
     @Test
-    fun `should connect to Redis and respond to ping`() = runBlocking {
-        val isHealthy = cacheService.ping()
-        assertTrue(isHealthy, "Redis should be healthy")
-    }
-
-    @Test
-    fun `should set and get string value`() = runBlocking {
-        val key = "qawave:test:string"
-        val value = "hello-world"
-
-        val setResult = cacheService.set(key, value, Duration.ofMinutes(5))
-        assertTrue(setResult, "Set should succeed")
-
-        val retrieved = cacheService.get(key, String::class.java)
-        assertEquals(value, retrieved, "Retrieved value should match")
-    }
-
-    @Test
-    fun `should set and get complex object`() = runBlocking {
-        val key = "qawave:test:object"
-        val value = TestCacheObject(
-            id = "test-123",
-            name = "Test Object",
-            count = 42
-        )
-
-        val setResult = cacheService.set(key, value, Duration.ofMinutes(5))
-        assertTrue(setResult, "Set should succeed")
-
-        val retrieved = cacheService.get(key, TestCacheObject::class.java)
-        assertNotNull(retrieved, "Retrieved value should not be null")
-        assertEquals(value.id, retrieved.id)
-        assertEquals(value.name, retrieved.name)
-        assertEquals(value.count, retrieved.count)
-    }
-
-    @Test
-    fun `should return null for non-existent key`() = runBlocking {
-        val key = "qawave:test:non-existent"
-        val retrieved = cacheService.get(key, String::class.java)
-        assertNull(retrieved, "Non-existent key should return null")
-    }
-
-    @Test
-    fun `should delete key`() = runBlocking {
-        val key = "qawave:test:delete"
-        cacheService.set(key, "to-be-deleted", Duration.ofMinutes(5))
-
-        assertTrue(cacheService.exists(key), "Key should exist before delete")
-
-        val deleted = cacheService.delete(key)
-        assertTrue(deleted, "Delete should succeed")
-
-        assertFalse(cacheService.exists(key), "Key should not exist after delete")
-    }
-
-    @Test
-    fun `should delete keys by pattern`() = runBlocking {
-        cacheService.set("qawave:test:pattern:1", "value1", Duration.ofMinutes(5))
-        cacheService.set("qawave:test:pattern:2", "value2", Duration.ofMinutes(5))
-        cacheService.set("qawave:test:other:1", "other", Duration.ofMinutes(5))
-
-        val deleted = cacheService.deleteByPattern("qawave:test:pattern:*")
-        assertEquals(2, deleted, "Should delete 2 keys matching pattern")
-
-        assertFalse(cacheService.exists("qawave:test:pattern:1"))
-        assertFalse(cacheService.exists("qawave:test:pattern:2"))
-        assertTrue(cacheService.exists("qawave:test:other:1"))
-    }
-
-    @Test
-    fun `should use getOrSet for cache-aside pattern`() = runBlocking {
-        val key = "qawave:test:cache-aside"
-        var computeCount = 0
-
-        val result1 = cacheService.getOrSet(key, String::class.java, Duration.ofMinutes(5)) {
-            computeCount++
-            "computed-value"
+    fun `should connect to Redis and respond to ping`() =
+        runBlocking {
+            val isHealthy = cacheService.ping()
+            assertTrue(isHealthy, "Redis should be healthy")
         }
 
-        assertEquals("computed-value", result1)
-        assertEquals(1, computeCount, "Should compute once on cache miss")
+    @Test
+    fun `should set and get string value`() =
+        runBlocking {
+            val key = "qawave:test:string"
+            val value = "hello-world"
 
-        val result2 = cacheService.getOrSet(key, String::class.java, Duration.ofMinutes(5)) {
-            computeCount++
-            "computed-value-2"
+            val setResult = cacheService.set(key, value, Duration.ofMinutes(5))
+            assertTrue(setResult, "Set should succeed")
+
+            val retrieved = cacheService.get(key, String::class.java)
+            assertEquals(value, retrieved, "Retrieved value should match")
         }
 
-        assertEquals("computed-value", result2, "Should return cached value")
-        assertEquals(1, computeCount, "Should not compute again on cache hit")
-    }
+    @Test
+    fun `should set and get complex object`() =
+        runBlocking {
+            val key = "qawave:test:object"
+            val value =
+                TestCacheObject(
+                    id = "test-123",
+                    name = "Test Object",
+                    count = 42,
+                )
+
+            val setResult = cacheService.set(key, value, Duration.ofMinutes(5))
+            assertTrue(setResult, "Set should succeed")
+
+            val retrieved = cacheService.get(key, TestCacheObject::class.java)
+            assertNotNull(retrieved, "Retrieved value should not be null")
+            assertEquals(value.id, retrieved.id)
+            assertEquals(value.name, retrieved.name)
+            assertEquals(value.count, retrieved.count)
+        }
 
     @Test
-    fun `should increment counter`() = runBlocking {
-        val key = "qawave:test:counter"
-
-        val first = cacheService.increment(key)
-        assertEquals(1, first)
-
-        val second = cacheService.increment(key)
-        assertEquals(2, second)
-
-        val third = cacheService.increment(key, 5)
-        assertEquals(7, third)
-    }
+    fun `should return null for non-existent key`() =
+        runBlocking {
+            val key = "qawave:test:non-existent"
+            val retrieved = cacheService.get(key, String::class.java)
+            assertNull(retrieved, "Non-existent key should return null")
+        }
 
     @Test
-    fun `should expire key`() = runBlocking {
-        val key = "qawave:test:expire"
-        cacheService.set(key, "value", Duration.ofMinutes(5))
+    fun `should delete key`() =
+        runBlocking {
+            val key = "qawave:test:delete"
+            cacheService.set(key, "to-be-deleted", Duration.ofMinutes(5))
 
-        val newTtl = Duration.ofSeconds(10)
-        val expired = cacheService.expire(key, newTtl)
-        assertTrue(expired, "Expire should succeed")
+            assertTrue(cacheService.exists(key), "Key should exist before delete")
 
-        val ttl = cacheService.getTtl(key)
-        assertNotNull(ttl, "TTL should be returned")
-        assertTrue(ttl.seconds <= 10, "TTL should be updated")
-    }
+            val deleted = cacheService.delete(key)
+            assertTrue(deleted, "Delete should succeed")
+
+            assertFalse(cacheService.exists(key), "Key should not exist after delete")
+        }
+
+    @Test
+    fun `should delete keys by pattern`() =
+        runBlocking {
+            cacheService.set("qawave:test:pattern:1", "value1", Duration.ofMinutes(5))
+            cacheService.set("qawave:test:pattern:2", "value2", Duration.ofMinutes(5))
+            cacheService.set("qawave:test:other:1", "other", Duration.ofMinutes(5))
+
+            val deleted = cacheService.deleteByPattern("qawave:test:pattern:*")
+            assertEquals(2, deleted, "Should delete 2 keys matching pattern")
+
+            assertFalse(cacheService.exists("qawave:test:pattern:1"))
+            assertFalse(cacheService.exists("qawave:test:pattern:2"))
+            assertTrue(cacheService.exists("qawave:test:other:1"))
+        }
+
+    @Test
+    fun `should use getOrSet for cache-aside pattern`() =
+        runBlocking {
+            val key = "qawave:test:cache-aside"
+            var computeCount = 0
+
+            val result1 =
+                cacheService.getOrSet(key, String::class.java, Duration.ofMinutes(5)) {
+                    computeCount++
+                    "computed-value"
+                }
+
+            assertEquals("computed-value", result1)
+            assertEquals(1, computeCount, "Should compute once on cache miss")
+
+            val result2 =
+                cacheService.getOrSet(key, String::class.java, Duration.ofMinutes(5)) {
+                    computeCount++
+                    "computed-value-2"
+                }
+
+            assertEquals("computed-value", result2, "Should return cached value")
+            assertEquals(1, computeCount, "Should not compute again on cache hit")
+        }
+
+    @Test
+    fun `should increment counter`() =
+        runBlocking {
+            val key = "qawave:test:counter"
+
+            val first = cacheService.increment(key)
+            assertEquals(1, first)
+
+            val second = cacheService.increment(key)
+            assertEquals(2, second)
+
+            val third = cacheService.increment(key, 5)
+            assertEquals(7, third)
+        }
+
+    @Test
+    fun `should expire key`() =
+        runBlocking {
+            val key = "qawave:test:expire"
+            cacheService.set(key, "value", Duration.ofMinutes(5))
+
+            val newTtl = Duration.ofSeconds(10)
+            val expired = cacheService.expire(key, newTtl)
+            assertTrue(expired, "Expire should succeed")
+
+            val ttl = cacheService.getTtl(key)
+            assertNotNull(ttl, "TTL should be returned")
+            assertTrue(ttl.seconds <= 10, "TTL should be updated")
+        }
 
     @Test
     fun `cache keys should generate correct prefixes`() {
@@ -202,6 +214,6 @@ class RedisIntegrationTest {
     data class TestCacheObject(
         val id: String,
         val name: String,
-        val count: Int
+        val count: Int,
     )
 }

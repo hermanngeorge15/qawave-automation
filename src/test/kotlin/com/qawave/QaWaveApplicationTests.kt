@@ -10,13 +10,14 @@ import org.springframework.test.context.ActiveProfiles
 
 @SpringBootTest
 @ActiveProfiles("test")
-@EnableAutoConfiguration(exclude = [
-    RedisAutoConfiguration::class,
-    RedisReactiveAutoConfiguration::class,
-    KafkaAutoConfiguration::class
-])
+@EnableAutoConfiguration(
+    exclude = [
+        RedisAutoConfiguration::class,
+        RedisReactiveAutoConfiguration::class,
+        KafkaAutoConfiguration::class,
+    ],
+)
 class QaWaveApplicationTests {
-
     @Test
     fun contextLoads() {
         // Basic smoke test to verify application context loads

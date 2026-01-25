@@ -9,7 +9,6 @@ import java.time.Instant
  * Provides business logic for creating, managing, and executing QA packages.
  */
 interface QaPackageService {
-
     /**
      * Creates a new QA package.
      *
@@ -49,7 +48,10 @@ interface QaPackageService {
      * @param size The page size
      * @return A page of packages
      */
-    suspend fun findAll(page: Int = 0, size: Int = 20): Page<QaPackage>
+    suspend fun findAll(
+        page: Int = 0,
+        size: Int = 20,
+    ): Page<QaPackage>
 
     /**
      * Streams all QA packages.
@@ -88,7 +90,10 @@ interface QaPackageService {
      * @param status The new status
      * @return The updated package
      */
-    suspend fun updateStatus(id: QaPackageId, status: QaPackageStatus): QaPackage
+    suspend fun updateStatus(
+        id: QaPackageId,
+        status: QaPackageStatus,
+    ): QaPackage
 
     /**
      * Updates a QA package.
@@ -97,7 +102,10 @@ interface QaPackageService {
      * @param command The update command
      * @return The updated package
      */
-    suspend fun update(id: QaPackageId, command: UpdateQaPackageCommand): QaPackage
+    suspend fun update(
+        id: QaPackageId,
+        command: UpdateQaPackageCommand,
+    ): QaPackage
 
     /**
      * Sets the coverage report for a QA package.
@@ -106,7 +114,10 @@ interface QaPackageService {
      * @param coverage The coverage report
      * @return The updated package
      */
-    suspend fun setCoverage(id: QaPackageId, coverage: CoverageReport): QaPackage
+    suspend fun setCoverage(
+        id: QaPackageId,
+        coverage: CoverageReport,
+    ): QaPackage
 
     /**
      * Sets the QA summary for a package.
@@ -115,7 +126,10 @@ interface QaPackageService {
      * @param summary The QA summary
      * @return The updated package
      */
-    suspend fun setQaSummary(id: QaPackageId, summary: QaSummary): QaPackage
+    suspend fun setQaSummary(
+        id: QaPackageId,
+        summary: QaSummary,
+    ): QaPackage
 
     /**
      * Marks a package as started.
@@ -140,7 +154,10 @@ interface QaPackageService {
      * @param status The failure status
      * @return The updated package
      */
-    suspend fun markFailed(id: QaPackageId, status: QaPackageStatus): QaPackage
+    suspend fun markFailed(
+        id: QaPackageId,
+        status: QaPackageStatus,
+    ): QaPackage
 
     /**
      * Deletes a QA package (soft delete).
@@ -177,7 +194,7 @@ data class CreateQaPackageCommand(
     val baseUrl: String,
     val requirements: String? = null,
     val triggeredBy: String,
-    val config: QaPackageConfig = QaPackageConfig()
+    val config: QaPackageConfig = QaPackageConfig(),
 ) {
     init {
         require(name.isNotBlank()) { "Package name cannot be blank" }
@@ -196,7 +213,7 @@ data class UpdateQaPackageCommand(
     val specContent: String? = null,
     val baseUrl: String? = null,
     val requirements: String? = null,
-    val config: QaPackageConfig? = null
+    val config: QaPackageConfig? = null,
 )
 
 /**
@@ -207,7 +224,7 @@ data class Page<T>(
     val page: Int,
     val size: Int,
     val totalElements: Long,
-    val totalPages: Int
+    val totalPages: Int,
 ) {
     val hasNext: Boolean get() = page < totalPages - 1
     val hasPrevious: Boolean get() = page > 0

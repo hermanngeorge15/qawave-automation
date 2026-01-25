@@ -10,20 +10,14 @@ data class CreateQaPackageRequest(
     @field:NotBlank(message = "Name is required")
     @field:Size(max = 255, message = "Name must be at most 255 characters")
     val name: String,
-
     @field:Size(max = 1000, message = "Description must be at most 1000 characters")
     val description: String? = null,
-
     val specUrl: String? = null,
-
     val specContent: String? = null,
-
     @field:NotBlank(message = "Base URL is required")
     val baseUrl: String,
-
     val requirements: String? = null,
-
-    val config: QaPackageConfigRequest? = null
+    val config: QaPackageConfigRequest? = null,
 )
 
 /**
@@ -37,7 +31,7 @@ data class QaPackageConfigRequest(
     val stopOnFirstFailure: Boolean = false,
     val includeSecurityTests: Boolean = false,
     val aiProvider: String = "openai",
-    val aiModel: String = "gpt-4o-mini"
+    val aiModel: String = "gpt-4o-mini",
 )
 
 /**
@@ -46,17 +40,11 @@ data class QaPackageConfigRequest(
 data class UpdateQaPackageRequest(
     @field:Size(max = 255, message = "Name must be at most 255 characters")
     val name: String? = null,
-
     @field:Size(max = 1000, message = "Description must be at most 1000 characters")
     val description: String? = null,
-
     val specUrl: String? = null,
-
     val specContent: String? = null,
-
     val baseUrl: String? = null,
-
     val requirements: String? = null,
-
-    val config: QaPackageConfigRequest? = null
+    val config: QaPackageConfigRequest? = null,
 )

@@ -24,7 +24,7 @@ data class QaPackageResponse(
     val completedAt: Instant?,
     val durationMs: Long?,
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
 ) {
     companion object {
         fun from(qaPackage: QaPackage): QaPackageResponse {
@@ -46,7 +46,7 @@ data class QaPackageResponse(
                 completedAt = qaPackage.completedAt,
                 durationMs = qaPackage.durationMs,
                 createdAt = qaPackage.createdAt,
-                updatedAt = qaPackage.updatedAt
+                updatedAt = qaPackage.updatedAt,
             )
         }
     }
@@ -63,7 +63,7 @@ data class QaPackageConfigResponse(
     val stopOnFirstFailure: Boolean,
     val includeSecurityTests: Boolean,
     val aiProvider: String,
-    val aiModel: String
+    val aiModel: String,
 ) {
     companion object {
         fun from(config: QaPackageConfig): QaPackageConfigResponse {
@@ -75,7 +75,7 @@ data class QaPackageConfigResponse(
                 stopOnFirstFailure = config.stopOnFirstFailure,
                 includeSecurityTests = config.includeSecurityTests,
                 aiProvider = config.aiProvider,
-                aiModel = config.aiModel
+                aiModel = config.aiModel,
             )
         }
     }
@@ -89,7 +89,7 @@ data class CoverageReportResponse(
     val coveredOperations: Int,
     val coveragePercentage: Double,
     val uncoveredOperations: Int,
-    val generatedAt: Instant
+    val generatedAt: Instant,
 ) {
     companion object {
         fun from(coverage: CoverageReport): CoverageReportResponse {
@@ -98,7 +98,7 @@ data class CoverageReportResponse(
                 coveredOperations = coverage.coveredOperations,
                 coveragePercentage = coverage.coveragePercentage,
                 uncoveredOperations = coverage.uncoveredOperations,
-                generatedAt = coverage.generatedAt
+                generatedAt = coverage.generatedAt,
             )
         }
     }
@@ -115,7 +115,7 @@ data class QaSummaryResponse(
     val erroredScenarios: Int,
     val qualityScore: Int?,
     val stabilityScore: Int?,
-    val generatedAt: Instant
+    val generatedAt: Instant,
 ) {
     companion object {
         fun from(summary: QaSummary): QaSummaryResponse {
@@ -127,7 +127,7 @@ data class QaSummaryResponse(
                 erroredScenarios = summary.erroredScenarios,
                 qualityScore = summary.riskAssessment?.qualityScore,
                 stabilityScore = summary.riskAssessment?.stabilityScore,
-                generatedAt = summary.generatedAt
+                generatedAt = summary.generatedAt,
             )
         }
     }
@@ -143,7 +143,7 @@ data class PageResponse<T>(
     val totalElements: Long,
     val totalPages: Int,
     val hasNext: Boolean,
-    val hasPrevious: Boolean
+    val hasPrevious: Boolean,
 )
 
 /**
@@ -153,5 +153,5 @@ data class ErrorResponse(
     val message: String,
     val code: String? = null,
     val details: Map<String, Any>? = null,
-    val timestamp: Instant = Instant.now()
+    val timestamp: Instant = Instant.now(),
 )

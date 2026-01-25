@@ -12,26 +12,26 @@ import reactor.core.publisher.Mono
  */
 @Component
 class RedisHealthIndicator(
-    private val cacheService: CacheService
+    private val cacheService: CacheService,
 ) : ReactiveHealthIndicator {
-
-    override fun health(): Mono<Health> = mono {
-        try {
-            val isHealthy = cacheService.ping()
-            if (isHealthy) {
-                Health.up()
-                    .withDetail("status", "Connected")
-                    .build()
-            } else {
+    override fun health(): Mono<Health> =
+        mono {
+            try {
+                val isHealthy = cacheService.ping()
+                if (isHealthy) {
+                    Health.up()
+                        .withDetail("status", "Connected")
+                        .build()
+                } else {
+                    Health.down()
+                        .withDetail("status", "Ping failed")
+                        .build()
+                }
+            } catch (e: Exception) {
                 Health.down()
-                    .withDetail("status", "Ping failed")
+                    .withDetail("status", "Error")
+                    .withDetail("error", e.message ?: "Unknown error")
                     .build()
             }
-        } catch (e: Exception) {
-            Health.down()
-                .withDetail("status", "Error")
-                .withDetail("error", e.message ?: "Unknown error")
-                .build()
         }
-    }
 }

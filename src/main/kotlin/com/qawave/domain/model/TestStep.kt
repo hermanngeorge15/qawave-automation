@@ -13,14 +13,20 @@ data class TestStep(
     val body: String? = null,
     val expected: ExpectedResult,
     val extractions: Map<String, String> = emptyMap(),
-    val timeoutMs: Long = 30_000
+    val timeoutMs: Long = 30_000,
 )
 
 /**
  * HTTP methods supported for test steps.
  */
 enum class HttpMethod {
-    GET, POST, PUT, PATCH, DELETE, HEAD, OPTIONS
+    GET,
+    POST,
+    PUT,
+    PATCH,
+    DELETE,
+    HEAD,
+    OPTIONS,
 }
 
 /**
@@ -32,7 +38,7 @@ data class ExpectedResult(
     val statusRange: IntRange? = null,
     val bodyContains: List<String> = emptyList(),
     val bodyFields: Map<String, FieldMatcher> = emptyMap(),
-    val headers: Map<String, String> = emptyMap()
+    val headers: Map<String, String> = emptyMap(),
 )
 
 /**

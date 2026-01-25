@@ -16,54 +16,38 @@ import java.util.UUID
 data class QaPackageEntity(
     @Id
     val id: UUID? = null,
-
     @Column("name")
     val name: String,
-
     @Column("description")
     val description: String? = null,
-
     @Column("spec_url")
     val specUrl: String? = null,
-
     @Column("spec_content")
     val specContent: String? = null,
-
     @Column("spec_hash")
     val specHash: String? = null,
-
     @Column("base_url")
     val baseUrl: String,
-
     @Column("requirements")
     val requirements: String? = null,
-
     @Column("status")
     val status: String,
-
     @Column("config_json")
     val configJson: String? = null,
-
     @Column("coverage_json")
     val coverageJson: String? = null,
-
     @Column("qa_summary_json")
     val qaSummaryJson: String? = null,
-
     @Column("triggered_by")
     val triggeredBy: String,
-
     @Column("started_at")
     val startedAt: Instant? = null,
-
     @Column("completed_at")
     val completedAt: Instant? = null,
-
     @CreatedDate
     @Column("created_at")
     val createdAt: Instant = Instant.now(),
-
     @LastModifiedDate
     @Column("updated_at")
-    val updatedAt: Instant = Instant.now()
+    val updatedAt: Instant = Instant.now(),
 )

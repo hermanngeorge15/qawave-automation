@@ -17,7 +17,7 @@ data class Requirement(
     val userFlows: List<UserFlow> = emptyList(),
     val tags: Set<String> = emptySet(),
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
 ) {
     init {
         require(title.isNotBlank()) { "Requirement title cannot be blank" }
@@ -55,7 +55,7 @@ data class Requirement(
 data class ExternalReference(
     val system: ExternalSystem,
     val id: String,
-    val url: String? = null
+    val url: String? = null,
 )
 
 /**
@@ -68,14 +68,17 @@ enum class ExternalSystem {
     GITLAB,
     AZURE_DEVOPS,
     NOTION,
-    OTHER
+    OTHER,
 }
 
 /**
  * Priority of a requirement.
  */
 enum class RequirementPriority {
-    LOW, MEDIUM, HIGH, CRITICAL
+    LOW,
+    MEDIUM,
+    HIGH,
+    CRITICAL,
 }
 
 /**
@@ -85,7 +88,7 @@ enum class RequirementStatus {
     DRAFT,
     ACTIVE,
     DEPRECATED,
-    ARCHIVED
+    ARCHIVED,
 }
 
 /**
@@ -94,7 +97,7 @@ enum class RequirementStatus {
 data class AcceptanceCriterion(
     val id: String,
     val description: String,
-    val testable: Boolean = true
+    val testable: Boolean = true,
 )
 
 /**
@@ -107,7 +110,7 @@ data class UserFlow(
     val description: String,
     val steps: List<UserFlowStep> = emptyList(),
     val preconditions: List<String> = emptyList(),
-    val expectedOutcomes: List<String> = emptyList()
+    val expectedOutcomes: List<String> = emptyList(),
 )
 
 /**
@@ -116,5 +119,5 @@ data class UserFlow(
 data class UserFlowStep(
     val index: Int,
     val action: String,
-    val expectedResult: String? = null
+    val expectedResult: String? = null,
 )

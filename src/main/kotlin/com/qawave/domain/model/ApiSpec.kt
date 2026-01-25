@@ -17,7 +17,7 @@ data class ApiSpec(
     val format: ApiSpecFormat,
     val operations: List<ApiOperation> = emptyList(),
     val createdAt: Instant,
-    val updatedAt: Instant
+    val updatedAt: Instant,
 ) {
     init {
         require(name.isNotBlank()) { "API spec name cannot be blank" }
@@ -56,7 +56,7 @@ enum class ApiSpecFormat {
     OPENAPI_3_0,
     OPENAPI_3_1,
     SWAGGER_2_0,
-    UNKNOWN
+    UNKNOWN,
 }
 
 /**
@@ -73,7 +73,7 @@ data class ApiOperation(
     val requestBody: ApiRequestBody? = null,
     val responses: Map<Int, ApiResponse> = emptyMap(),
     val security: List<String> = emptyList(),
-    val deprecated: Boolean = false
+    val deprecated: Boolean = false,
 )
 
 /**
@@ -85,14 +85,17 @@ data class ApiParameter(
     val description: String?,
     val required: Boolean,
     val schema: ParameterSchema?,
-    val example: Any? = null
+    val example: Any? = null,
 )
 
 /**
  * Location of a parameter.
  */
 enum class ParameterLocation {
-    QUERY, PATH, HEADER, COOKIE
+    QUERY,
+    PATH,
+    HEADER,
+    COOKIE,
 }
 
 /**
@@ -105,7 +108,7 @@ data class ParameterSchema(
     val default: Any? = null,
     val minimum: Number? = null,
     val maximum: Number? = null,
-    val pattern: String? = null
+    val pattern: String? = null,
 )
 
 /**
@@ -114,7 +117,7 @@ data class ParameterSchema(
 data class ApiRequestBody(
     val description: String?,
     val required: Boolean,
-    val contentTypes: Map<String, RequestBodySchema> = emptyMap()
+    val contentTypes: Map<String, RequestBodySchema> = emptyMap(),
 )
 
 /**
@@ -122,7 +125,7 @@ data class ApiRequestBody(
  */
 data class RequestBodySchema(
     val schema: String?,
-    val example: Any? = null
+    val example: Any? = null,
 )
 
 /**
@@ -131,7 +134,7 @@ data class RequestBodySchema(
 data class ApiResponse(
     val description: String?,
     val contentTypes: Map<String, ResponseSchema> = emptyMap(),
-    val headers: Map<String, String> = emptyMap()
+    val headers: Map<String, String> = emptyMap(),
 )
 
 /**
@@ -139,5 +142,5 @@ data class ApiResponse(
  */
 data class ResponseSchema(
     val schema: String?,
-    val example: Any? = null
+    val example: Any? = null,
 )

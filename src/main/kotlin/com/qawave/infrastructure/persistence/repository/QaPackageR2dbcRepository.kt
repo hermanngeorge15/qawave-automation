@@ -14,7 +14,6 @@ import java.util.UUID
  */
 @Repository
 interface QaPackageR2dbcRepository : CoroutineCrudRepository<QaPackageEntity, UUID> {
-
     /**
      * Find all packages with a specific status.
      */
@@ -44,11 +43,13 @@ interface QaPackageR2dbcRepository : CoroutineCrudRepository<QaPackageEntity, UU
     /**
      * Find incomplete packages (not in terminal status).
      */
-    @Query("""
+    @Query(
+        """
         SELECT * FROM qa_packages
         WHERE status NOT IN ('COMPLETE', 'FAILED_SPEC_FETCH', 'FAILED_GENERATION', 'FAILED_EXECUTION', 'CANCELLED')
         ORDER BY created_at DESC
-    """)
+    """,
+    )
     fun findIncompletePackages(): Flow<QaPackageEntity>
 
     /**
