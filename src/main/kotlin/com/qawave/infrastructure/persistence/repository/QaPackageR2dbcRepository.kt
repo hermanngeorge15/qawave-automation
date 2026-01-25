@@ -2,6 +2,7 @@ package com.qawave.infrastructure.persistence.repository
 
 import com.qawave.infrastructure.persistence.entity.QaPackageEntity
 import kotlinx.coroutines.flow.Flow
+import org.springframework.data.domain.Pageable
 import org.springframework.data.r2dbc.repository.Query
 import org.springframework.data.repository.kotlin.CoroutineCrudRepository
 import org.springframework.stereotype.Repository
@@ -56,4 +57,25 @@ interface QaPackageR2dbcRepository : CoroutineCrudRepository<QaPackageEntity, UU
      * Count packages by status.
      */
     suspend fun countByStatus(status: String): Long
+
+    /**
+     * Find all packages with pagination.
+     */
+    fun findAllBy(pageable: Pageable): Flow<QaPackageEntity>
+
+    /**
+     * Find packages by status with pagination.
+     */
+    fun findByStatus(status: String, pageable: Pageable): Flow<QaPackageEntity>
+
+    /**
+     * Find packages triggered by a user with pagination.
+     */
+    fun findByTriggeredBy(triggeredBy: String, pageable: Pageable): Flow<QaPackageEntity>
+
+    /**
+     * Find all packages ordered by created_at descending with pagination.
+     */
+    @Query("SELECT * FROM qa_packages ORDER BY created_at DESC LIMIT :limit OFFSET :offset")
+    fun findAllOrderByCreatedAtDesc(limit: Int, offset: Int): Flow<QaPackageEntity>
 }
