@@ -1,0 +1,174 @@
+@import 'tailwindcss';
+
+@theme {
+  /* QAWave brand colors */
+  --color-primary-50: #f0f4ff;
+  --color-primary-100: #e0e9ff;
+  --color-primary-200: #c7d6fe;
+  --color-primary-300: #a4bafc;
+  --color-primary-400: #7b92f9;
+  --color-primary-500: #5a6cf3;
+  --color-primary-600: #4449e7;
+  --color-primary-700: #3939cc;
+  --color-primary-800: #3132a5;
+  --color-primary-900: #2e3082;
+  --color-primary-950: #1c1c4d;
+
+  --color-secondary-50: #f6f6f9;
+  --color-secondary-100: #ededf1;
+  --color-secondary-200: #d7d8e0;
+  --color-secondary-300: #b4b6c6;
+  --color-secondary-400: #8c8fa6;
+  --color-secondary-500: #6e718b;
+  --color-secondary-600: #585b72;
+  --color-secondary-700: #48495d;
+  --color-secondary-800: #3e3f4f;
+  --color-secondary-900: #363744;
+  --color-secondary-950: #24242d;
+
+  --color-success-50: #f0fdf4;
+  --color-success-500: #22c55e;
+  --color-success-600: #16a34a;
+  --color-success-700: #15803d;
+
+  --color-warning-50: #fffbeb;
+  --color-warning-500: #f59e0b;
+  --color-warning-600: #d97706;
+
+  --color-danger-50: #fef2f2;
+  --color-danger-500: #ef4444;
+  --color-danger-600: #dc2626;
+  --color-danger-700: #b91c1c;
+
+  /* Typography */
+  --font-family-sans: 'Inter', system-ui, sans-serif;
+  --font-family-mono: 'JetBrains Mono', 'Fira Code', monospace;
+
+  /* Animations */
+  --animate-fade-in: fade-in 0.3s ease-in-out;
+  --animate-slide-up: slide-up 0.3s ease-out;
+
+  @keyframes fade-in {
+    from { opacity: 0; }
+    to { opacity: 1; }
+  }
+
+  @keyframes slide-up {
+    from { transform: translateY(10px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
+}
+
+/* Base styles */
+:root {
+  font-synthesis: none;
+  text-rendering: optimizeLegibility;
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+  @apply min-w-80 min-h-screen bg-secondary-950 text-white font-sans;
+}
+
+.dark body {
+  @apply bg-secondary-950 text-white;
+}
+
+/* Main Layout */
+.main-layout {
+  @apply flex flex-col min-h-screen;
+}
+
+.main-header {
+  @apply bg-secondary-900 border-b border-secondary-800 px-4;
+}
+
+.main-nav {
+  @apply flex items-center justify-between max-w-7xl mx-auto h-16;
+}
+
+.nav-logo {
+  @apply text-2xl font-bold text-white no-underline;
+}
+
+.nav-links {
+  @apply flex gap-6;
+}
+
+.nav-link {
+  @apply text-secondary-400 no-underline py-2 transition-colors duration-200;
+}
+
+.nav-link:hover {
+  @apply text-white;
+}
+
+.nav-link.active {
+  @apply text-primary-500;
+}
+
+.main-content {
+  @apply flex-1 max-w-7xl mx-auto p-8 w-full;
+}
+
+/* Page styles */
+.page-title {
+  @apply text-3xl font-bold mb-4;
+}
+
+/* Loading states */
+.loading-state {
+  @apply p-8 text-center text-secondary-400;
+}
+
+/* Error states */
+.error-state,
+.query-error-boundary {
+  @apply p-8 bg-danger-500/10 border border-danger-500/30 rounded-lg text-center;
+}
+
+.error-state h2,
+.query-error-boundary h2 {
+  @apply text-danger-500 mb-2;
+}
+
+.error-state p,
+.query-error-boundary p {
+  @apply text-secondary-400 mb-4;
+}
+
+/* Buttons */
+.btn {
+  @apply px-4 py-2 rounded-md font-medium transition-colors duration-200 cursor-pointer;
+}
+
+.btn:disabled {
+  @apply opacity-50 cursor-not-allowed;
+}
+
+.btn-primary {
+  @apply bg-primary-600 text-white hover:bg-primary-700;
+}
+
+.btn-secondary {
+  @apply bg-secondary-700 text-white hover:bg-secondary-600;
+}
+
+.btn-danger {
+  @apply bg-danger-600 text-white hover:bg-danger-700;
+}
+
+.btn-ghost {
+  @apply bg-transparent text-secondary-400 hover:text-white hover:bg-secondary-800;
+}
+
+/* Cards */
+.card {
+  @apply bg-secondary-900 rounded-xl border border-secondary-800 p-6;
+}
+
+/* Auth Loading */
+.auth-loading {
+  @apply flex items-center justify-center min-h-screen text-secondary-400;
+}
