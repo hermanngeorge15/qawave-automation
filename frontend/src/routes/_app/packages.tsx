@@ -41,7 +41,9 @@ function PackagesPage() {
           type="text"
           placeholder="Search packages..."
           value={search}
-          onChange={(e) => setSearch(e.target.value)}
+          onChange={(e) => {
+            setSearch(e.target.value)
+          }}
           className="w-full sm:w-80 px-4 py-2 bg-secondary-800 border border-secondary-700 rounded-lg text-white placeholder-secondary-500 focus:outline-none focus:border-primary-500 transition-colors"
         />
       </div>
@@ -52,9 +54,11 @@ function PackagesPage() {
       ) : isError ? (
         <div className="error-state">
           <h2>Error loading packages</h2>
-          <p>{error?.message ?? 'An unexpected error occurred'}</p>
+          <p>{error.message}</p>
           <button
-            onClick={() => window.location.reload()}
+            onClick={() => {
+              window.location.reload()
+            }}
             className="btn btn-primary mt-4"
           >
             Retry
@@ -103,7 +107,9 @@ function PackagesPage() {
           {data && data.totalPages > 1 && (
             <div className="flex justify-center items-center gap-4 mt-8">
               <button
-                onClick={() => setPage((p) => Math.max(0, p - 1))}
+                onClick={() => {
+                  setPage((p) => Math.max(0, p - 1))
+                }}
                 disabled={data.first}
                 className="btn btn-ghost disabled:opacity-50"
               >
@@ -113,7 +119,9 @@ function PackagesPage() {
                 Page {page + 1} of {data.totalPages}
               </span>
               <button
-                onClick={() => setPage((p) => p + 1)}
+                onClick={() => {
+                  setPage((p) => p + 1)
+                }}
                 disabled={data.last}
                 className="btn btn-ghost disabled:opacity-50"
               >

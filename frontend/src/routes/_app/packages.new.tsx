@@ -75,7 +75,9 @@ function NewPackagePage() {
         </p>
       </header>
 
-      <form onSubmit={handleSubmit} className="space-y-6">
+      <form onSubmit={(e) => {
+        void handleSubmit(e)
+      }} className="space-y-6">
         {/* Name */}
         <div>
           <label htmlFor="name" className="block text-sm font-medium text-white mb-2">
@@ -85,7 +87,9 @@ function NewPackagePage() {
             id="name"
             type="text"
             value={name}
-            onChange={(e) => setName(e.target.value)}
+            onChange={(e) => {
+              setName(e.target.value)
+            }}
             placeholder="My API Package"
             className={`w-full px-4 py-2 bg-secondary-800 border rounded-lg text-white placeholder-secondary-500 focus:outline-none transition-colors ${
               errors.name
@@ -104,7 +108,9 @@ function NewPackagePage() {
           <textarea
             id="description"
             value={description}
-            onChange={(e) => setDescription(e.target.value)}
+            onChange={(e) => {
+              setDescription(e.target.value)
+            }}
             placeholder="Optional description for this package..."
             rows={3}
             className="w-full px-4 py-2 bg-secondary-800 border border-secondary-700 rounded-lg text-white placeholder-secondary-500 focus:outline-none focus:border-primary-500 transition-colors resize-none"
@@ -120,7 +126,9 @@ function NewPackagePage() {
             id="baseUrl"
             type="url"
             value={baseUrl}
-            onChange={(e) => setBaseUrl(e.target.value)}
+            onChange={(e) => {
+              setBaseUrl(e.target.value)
+            }}
             placeholder="https://api.example.com"
             className={`w-full px-4 py-2 bg-secondary-800 border rounded-lg text-white placeholder-secondary-500 focus:outline-none transition-colors ${
               errors.baseUrl
@@ -142,7 +150,9 @@ function NewPackagePage() {
           <textarea
             id="openApiSpec"
             value={openApiSpec}
-            onChange={(e) => setOpenApiSpec(e.target.value)}
+            onChange={(e) => {
+              setOpenApiSpec(e.target.value)
+            }}
             placeholder='{"openapi": "3.0.0", ...}'
             rows={12}
             className={`w-full px-4 py-2 bg-secondary-800 border rounded-lg text-white placeholder-secondary-500 focus:outline-none transition-colors font-mono text-sm ${
@@ -181,7 +191,9 @@ function NewPackagePage() {
           </button>
           <button
             type="button"
-            onClick={() => navigate({ to: '/packages' })}
+            onClick={() => {
+              void navigate({ to: '/packages' })
+            }}
             className="btn btn-ghost"
           >
             Cancel
