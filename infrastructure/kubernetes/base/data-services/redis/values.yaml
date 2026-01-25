@@ -1,0 +1,107 @@
+# Redis Helm Values for QAWave
+# Chart: bitnami/redis
+# Version: 19.x
+#
+# Install:
+#   helm repo add bitnami https://charts.bitnami.com/bitnami
+#   helm install redis bitnami/redis -n qawave -f values.yaml
+#
+
+# Redis version
+image:
+  tag: "7.2.4"
+
+# Architecture: standalone (no replicas) for cost efficiency
+# Change to 'replication' for HA setup
+architecture: standalone
+
+# Authentication
+auth:
+  enabled: true
+  # Password will be auto-generated if not set
+  # Or use existingSecret for production:
+  # existingSecret: redis-secrets
+  # existingSecretPasswordKey: redis-password
+
+# Master configuration (used in standalone mode)
+master:
+  # Resource limits
+  resources:
+    requests:
+      cpu: 100m
+      memory: 256Mi
+    limits:
+      cpu: 500m
+      memory: 512Mi
+
+  # Persistence
+  persistence:
+    enabled: true
+    size: 5Gi
+    storageClass: ""
+
+  # Redis configuration
+  configuration: |
+    # Memory management
+    maxmemory 400mb
+    maxmemory-policy allkeys-lru
+
+    # Persistence
+    appendonly yes
+    appendfsync everysec
+
+    # Performance
+    tcp-keepalive 300
+    timeout 0
+
+    # Logging
+    loglevel notice
+
+  # Pod annotations for monitoring
+  podAnnotations:
+    prometheus.io/scrape: "true"
+    prometheus.io/port: "9121"
+
+# Disable replicas for standalone mode
+replica:
+  replicaCount: 0
+
+# Sentinel configuration (for HA mode)
+sentinel:
+  enabled: false
+
+# Metrics exporter
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false  # Enable if using Prometheus Operator
+  resources:
+    requests:
+      cpu: 25m
+      memory: 32Mi
+    limits:
+      cpu: 100m
+      memory: 64Mi
+
+# Network policy
+networkPolicy:
+  enabled: true
+  allowExternal: false
+  ingressNSMatchLabels:
+    kubernetes.io/metadata.name: qawave
+  ingressNSPodMatchLabels:
+    app.kubernetes.io/name: backend
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    redis: 6379
+
+# Volume permissions init container
+volumePermissions:
+  enabled: false
+
+# Sysctl init container (for performance)
+sysctl:
+  enabled: false
