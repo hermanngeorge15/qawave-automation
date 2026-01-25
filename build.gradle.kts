@@ -44,6 +44,7 @@ dependencies {
 
     // Redis
     implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
+    implementation("org.apache.commons:commons-pool2:2.12.0")
 
     // Kafka
     implementation("org.springframework.kafka:spring-kafka")
@@ -71,6 +72,7 @@ dependencies {
     testImplementation("org.testcontainers:junit-jupiter")
     testImplementation("org.testcontainers:postgresql")
     testImplementation("org.testcontainers:kafka")
+    testImplementation("com.redis:testcontainers-redis:2.2.2")
     testImplementation("org.testcontainers:r2dbc")
     testImplementation("io.mockk:mockk:1.13.9")
     testImplementation("org.jetbrains.kotlin:kotlin-test")
@@ -78,6 +80,9 @@ dependencies {
     // H2 for testing
     testRuntimeOnly("io.r2dbc:r2dbc-h2")
     testRuntimeOnly("com.h2database:h2")
+
+    // Kotlin test
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
 }
 
 kotlin {

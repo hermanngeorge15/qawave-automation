@@ -1,0 +1,9 @@
+import { createFileRoute, Navigate } from '@tanstack/react-router'
+
+export const Route = createFileRoute('/_app/')({
+  component: IndexRoute,
+})
+
+function IndexRoute() {
+  return <Navigate to="/packages" />
+}

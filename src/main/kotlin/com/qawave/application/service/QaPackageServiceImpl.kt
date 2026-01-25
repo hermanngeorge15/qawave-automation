@@ -1,7 +1,10 @@
 package com.qawave.application.service
 
 import com.qawave.domain.model.*
-import com.qawave.domain.repository.QaPackageRepository
+import com.qawave.infrastructure.persistence.mapper.QaPackageMapper
+import com.qawave.infrastructure.persistence.repository.QaPackageR2dbcRepository
+import com.qawave.infrastructure.persistence.repository.TestRunR2dbcRepository
+import com.qawave.infrastructure.persistence.repository.TestScenarioR2dbcRepository
 import kotlinx.coroutines.flow.Flow
 import kotlinx.coroutines.flow.map
 import kotlinx.coroutines.flow.toList
@@ -19,7 +22,10 @@ import kotlin.math.ceil
 @Service
 @Transactional
 class QaPackageServiceImpl(
-    private val repository: QaPackageRepository
+    private val packageRepository: QaPackageR2dbcRepository,
+    private val scenarioRepository: TestScenarioR2dbcRepository,
+    private val runRepository: TestRunR2dbcRepository,
+    private val mapper: QaPackageMapper
 ) : QaPackageService {
 
     private val logger = LoggerFactory.getLogger(QaPackageServiceImpl::class.java)
@@ -45,32 +51,50 @@ class QaPackageServiceImpl(
             updatedAt = Instant.now()
         )
 
-        val saved = repository.save(qaPackage)
-        logger.info("Created QA package: id={}", saved.id)
+        val entity = mapper.toNewEntity(qaPackage)
+        val savedEntity = packageRepository.save(entity)
 
-        return saved
+        logger.info("Created QA package: id={}", savedEntity.id)
+
+        return mapper.toDomain(savedEntity)
     }
 
     override suspend fun findById(id: QaPackageId): QaPackage? {
-        return repository.findById(id)
+        return packageRepository.findById(id.value)?.let { mapper.toDomain(it) }
     }
 
     override suspend fun findByIdWithScenarios(id: QaPackageId): QaPackage? {
-        return repository.findById(id)
+        val entity = packageRepository.findById(id.value) ?: return null
+        val qaPackage = mapper.toDomain(entity)
+
+        // Load scenarios (simplified - would need scenario mapper)
+        val scenarioCount = scenarioRepository.countByQaPackageId(id.value)
+
+        logger.debug("Found package {} with {} scenarios", id, scenarioCount)
+
+        return qaPackage
     }
 
     override suspend fun findByIdFull(id: QaPackageId): QaPackage? {
-        return repository.findById(id)
+        val entity = packageRepository.findById(id.value) ?: return null
+        val qaPackage = mapper.toDomain(entity)
+
+        // This would load all related data - scenarios, runs, results
+        // For now, return the package without nested data
+        // Full loading would be implemented with proper mappers
+
+        return qaPackage
     }
 
     override suspend fun findAll(page: Int, size: Int): Page<QaPackage> {
-        val allPackages = repository.findAll().toList()
+        val allPackages = packageRepository.findAll().toList()
         val total = allPackages.size.toLong()
         val totalPages = ceil(total.toDouble() / size).toInt().coerceAtLeast(1)
 
         val content = allPackages
             .drop(page * size)
             .take(size)
+            .map { mapper.toDomain(it) }
 
         return Page(
             content = content,
@@ -82,119 +106,119 @@ class QaPackageServiceImpl(
     }
 
     override fun findAllStream(): Flow<QaPackage> {
-        return repository.findAll()
+        return packageRepository.findAll().map { mapper.toDomain(it) }
     }
 
     override suspend fun findByStatus(status: QaPackageStatus): List<QaPackage> {
-        return repository.findByStatus(status)
+        return packageRepository.findByStatus(status.name).map { mapper.toDomain(it) }
     }
 
     override fun findIncomplete(): Flow<QaPackage> {
-        return repository.findIncomplete()
+        return packageRepository.findIncompletePackages().map { mapper.toDomain(it) }
     }
 
     override fun findRecent(since: Instant): Flow<QaPackage> {
-        return repository.findRecent(since)
+        return packageRepository.findRecentPackages(since).map { mapper.toDomain(it) }
     }
 
     override suspend fun updateStatus(id: QaPackageId, status: QaPackageStatus): QaPackage {
-        val existing = repository.findById(id)
+        val entity = packageRepository.findById(id.value)
             ?: throw PackageNotFoundException(id)
 
-        validateStatusTransition(existing.status, status)
+        val currentStatus = QaPackageStatus.valueOf(entity.status)
+        validateStatusTransition(currentStatus, status)
 
-        val updated = existing.copy(
-            status = status,
+        val updatedEntity = entity.copy(
+            status = status.name,
             updatedAt = Instant.now()
         )
 
-        val saved = repository.save(updated)
-        logger.info("Updated package {} status: {} -> {}", id, existing.status, status)
+        val saved = packageRepository.save(updatedEntity)
+        logger.info("Updated package {} status: {} -> {}", id, currentStatus, status)
 
-        return saved
+        return mapper.toDomain(saved)
     }
 
     override suspend fun update(id: QaPackageId, command: UpdateQaPackageCommand): QaPackage {
-        val existing = repository.findById(id)
+        val entity = packageRepository.findById(id.value)
             ?: throw PackageNotFoundException(id)
 
-        val updated = existing.copy(
-            name = command.name ?: existing.name,
-            description = command.description ?: existing.description,
-            specUrl = command.specUrl ?: existing.specUrl,
-            specContent = command.specContent ?: existing.specContent,
-            specHash = command.specContent?.let { computeHash(it) } ?: existing.specHash,
-            baseUrl = command.baseUrl ?: existing.baseUrl,
-            requirements = command.requirements ?: existing.requirements,
-            config = command.config ?: existing.config,
+        val updatedEntity = entity.copy(
+            name = command.name ?: entity.name,
+            description = command.description ?: entity.description,
+            specUrl = command.specUrl ?: entity.specUrl,
+            specContent = command.specContent ?: entity.specContent,
+            specHash = command.specContent?.let { computeHash(it) } ?: entity.specHash,
+            baseUrl = command.baseUrl ?: entity.baseUrl,
+            requirements = command.requirements ?: entity.requirements,
             updatedAt = Instant.now()
         )
 
-        val saved = repository.save(updated)
+        val saved = packageRepository.save(updatedEntity)
         logger.info("Updated package: id={}", id)
 
-        return saved
+        return mapper.toDomain(saved)
     }
 
     override suspend fun setCoverage(id: QaPackageId, coverage: CoverageReport): QaPackage {
-        val existing = repository.findById(id)
+        val entity = packageRepository.findById(id.value)
             ?: throw PackageNotFoundException(id)
 
-        val updated = existing.copy(
+        val qaPackage = mapper.toDomain(entity).copy(
             coverage = coverage,
             updatedAt = Instant.now()
         )
 
-        val saved = repository.save(updated)
+        val saved = packageRepository.save(mapper.toEntity(qaPackage))
         logger.info("Set coverage for package: id={}, coverage={}%", id, coverage.coveragePercentage)
 
-        return saved
+        return mapper.toDomain(saved)
     }
 
     override suspend fun setQaSummary(id: QaPackageId, summary: QaSummary): QaPackage {
-        val existing = repository.findById(id)
+        val entity = packageRepository.findById(id.value)
             ?: throw PackageNotFoundException(id)
 
-        val updated = existing.copy(
+        val qaPackage = mapper.toDomain(entity).copy(
             qaSummary = summary,
             updatedAt = Instant.now()
         )
 
-        val saved = repository.save(updated)
+        val saved = packageRepository.save(mapper.toEntity(qaPackage))
         logger.info("Set QA summary for package: id={}, verdict={}", id, summary.overallVerdict)
 
-        return saved
+        return mapper.toDomain(saved)
     }
 
     override suspend fun markStarted(id: QaPackageId): QaPackage {
-        val existing = repository.findById(id)
+        val entity = packageRepository.findById(id.value)
             ?: throw PackageNotFoundException(id)
 
-        val updated = existing.copy(
+        val updatedEntity = entity.copy(
             startedAt = Instant.now(),
             updatedAt = Instant.now()
         )
 
-        val saved = repository.save(updated)
+        val saved = packageRepository.save(updatedEntity)
         logger.info("Marked package as started: id={}", id)
 
-        return saved
+        return mapper.toDomain(saved)
     }
 
     override suspend fun markCompleted(id: QaPackageId): QaPackage {
-        val existing = repository.findById(id)
+        val entity = packageRepository.findById(id.value)
             ?: throw PackageNotFoundException(id)
 
-        val updated = existing.copy(
-            status = QaPackageStatus.COMPLETE,
+        val updatedEntity = entity.copy(
+            status = QaPackageStatus.COMPLETE.name,
             completedAt = Instant.now(),
             updatedAt = Instant.now()
         )
 
-        val saved = repository.save(updated)
+        val saved = packageRepository.save(updatedEntity)
         logger.info("Marked package as completed: id={}", id)
 
-        return saved
+        return mapper.toDomain(saved)
     }
 
     override suspend fun markFailed(id: QaPackageId, status: QaPackageStatus): QaPackage {
@@ -202,36 +226,40 @@ class QaPackageServiceImpl(
             "Status must be a failure status"
         }
 
-        val existing = repository.findById(id)
+        val entity = packageRepository.findById(id.value)
             ?: throw PackageNotFoundException(id)
 
-        val updated = existing.copy(
-            status = status,
+        val updatedEntity = entity.copy(
+            status = status.name,
             completedAt = Instant.now(),
             updatedAt = Instant.now()
         )
 
-        val saved = repository.save(updated)
+        val saved = packageRepository.save(updatedEntity)
         logger.info("Marked package as failed: id={}, status={}", id, status)
 
-        return saved
+        return mapper.toDomain(saved)
     }
 
     override suspend fun delete(id: QaPackageId): Boolean {
-        val exists = repository.existsById(id)
+        val exists = packageRepository.existsById(id.value)
         if (!exists) return false
 
-        repository.delete(id)
+        // Delete related data first
+        runRepository.deleteByQaPackageId(id.value)
+        scenarioRepository.deleteByQaPackageId(id.value)
+        packageRepository.deleteById(id.value)
+
         logger.info("Deleted package: id={}", id)
         return true
     }
 
     override suspend fun countByStatus(status: QaPackageStatus): Long {
-        return repository.countByStatus(status)
+        return packageRepository.countByStatus(status.name)
     }
 
     override suspend fun count(): Long {
-        return repository.count()
+        return packageRepository.count()
     }
 
     private fun validateStatusTransition(current: QaPackageStatus, target: QaPackageStatus) {

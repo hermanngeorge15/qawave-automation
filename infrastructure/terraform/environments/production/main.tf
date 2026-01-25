@@ -3,7 +3,7 @@
 
 terraform {
   required_version = ">= 1.6.0"
-  
+
   required_providers {
     hcloud = {
       source  = "hetznercloud/hcloud"
@@ -18,7 +18,7 @@ terraform {
       version = "~> 2.4"
     }
   }
-  
+
   backend "s3" {
     bucket = "qawave-terraform-state"
     key    = "production/terraform.tfstate"
@@ -108,7 +108,7 @@ resource "hcloud_network_subnet" "nodes" {
 
 resource "hcloud_firewall" "k8s" {
   name = "qawave-k8s-${var.environment}"
-  
+
   # SSH
   rule {
     direction  = "in"
@@ -116,7 +116,7 @@ resource "hcloud_firewall" "k8s" {
     port       = "22"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-  
+
   # Kubernetes API
   rule {
     direction  = "in"
@@ -124,7 +124,7 @@ resource "hcloud_firewall" "k8s" {
     port       = "6443"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-  
+
   # HTTP
   rule {
     direction  = "in"
@@ -132,7 +132,7 @@ resource "hcloud_firewall" "k8s" {
     port       = "80"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-  
+
   # HTTPS
   rule {
     direction  = "in"
@@ -140,7 +140,7 @@ resource "hcloud_firewall" "k8s" {
     port       = "443"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-  
+
   # NodePort range (for ingress)
   rule {
     direction  = "in"
@@ -148,7 +148,7 @@ resource "hcloud_firewall" "k8s" {
     port       = "30000-32767"
     source_ips = ["0.0.0.0/0", "::/0"]
   }
-  
+
   # Internal cluster communication
   rule {
     direction  = "in"
@@ -156,7 +156,7 @@ resource "hcloud_firewall" "k8s" {
     port       = "any"
     source_ips = ["10.0.0.0/16"]
   }
-  
+
   rule {
     direction  = "in"
     protocol   = "udp"
@@ -170,24 +170,24 @@ resource "hcloud_firewall" "k8s" {
 # =============================================================================
 
 resource "hcloud_server" "control_plane" {
-  name        = "qawave-cp-${var.environment}"
-  server_type = var.control_plane_type
-  image       = "ubuntu-22.04"
-  location    = var.location
-  ssh_keys    = [hcloud_ssh_key.main.id]
+  name         = "qawave-cp-${var.environment}"
+  server_type  = var.control_plane_type
+  image        = "ubuntu-22.04"
+  location     = var.location
+  ssh_keys     = [hcloud_ssh_key.main.id]
   firewall_ids = [hcloud_firewall.k8s.id]
-  
+
   network {
     network_id = hcloud_network.main.id
     ip         = "10.0.1.10"
   }
-  
+
   labels = {
     role        = "control-plane"
     environment = var.environment
     managed_by  = "terraform"
   }
-  
+
   user_data = <<-EOF
     #!/bin/bash
     set -e
@@ -221,26 +221,26 @@ resource "hcloud_server" "control_plane" {
 # =============================================================================
 
 resource "hcloud_server" "workers" {
-  count       = var.worker_count
-  name        = "qawave-worker-${var.environment}-${count.index + 1}"
-  server_type = var.worker_type
-  image       = "ubuntu-22.04"
-  location    = var.location
-  ssh_keys    = [hcloud_ssh_key.main.id]
+  count        = var.worker_count
+  name         = "qawave-worker-${var.environment}-${count.index + 1}"
+  server_type  = var.worker_type
+  image        = "ubuntu-22.04"
+  location     = var.location
+  ssh_keys     = [hcloud_ssh_key.main.id]
   firewall_ids = [hcloud_firewall.k8s.id]
-  
+
   network {
     network_id = hcloud_network.main.id
     ip         = "10.0.1.${11 + count.index}"
   }
-  
+
   labels = {
     role        = "worker"
     environment = var.environment
     managed_by  = "terraform"
     worker_id   = tostring(count.index + 1)
   }
-  
+
   depends_on = [hcloud_server.control_plane]
 }
 
@@ -252,7 +252,7 @@ resource "hcloud_load_balancer" "main" {
   name               = "qawave-lb-${var.environment}"
   load_balancer_type = "lb11"
   location           = var.location
-  
+
   labels = {
     environment = var.environment
     managed_by  = "terraform"
@@ -278,7 +278,7 @@ resource "hcloud_load_balancer_service" "http" {
   protocol         = "tcp"
   listen_port      = 80
   destination_port = 30080
-  
+
   health_check {
     protocol = "tcp"
     port     = 30080
@@ -293,7 +293,7 @@ resource "hcloud_load_balancer_service" "https" {
   protocol         = "tcp"
   listen_port      = 443
   destination_port = 30443
-  
+
   health_check {
     protocol = "tcp"
     port     = 30443
@@ -308,11 +308,11 @@ resource "hcloud_load_balancer_service" "https" {
 # =============================================================================
 
 resource "hcloud_volume" "postgres" {
-  name      = "qawave-postgres-${var.environment}"
-  size      = 50
-  location  = var.location
-  format    = "ext4"
-  
+  name     = "qawave-postgres-${var.environment}"
+  size     = 50
+  location = var.location
+  format   = "ext4"
+
   labels = {
     service     = "postgresql"
     environment = var.environment
@@ -320,11 +320,11 @@ resource "hcloud_volume" "postgres" {
 }
 
 resource "hcloud_volume" "redis" {
-  name      = "qawave-redis-${var.environment}"
-  size      = 10
-  location  = var.location
-  format    = "ext4"
-  
+  name     = "qawave-redis-${var.environment}"
+  size     = 10
+  location = var.location
+  format   = "ext4"
+
   labels = {
     service     = "redis"
     environment = var.environment
@@ -332,11 +332,11 @@ resource "hcloud_volume" "redis" {
 }
 
 resource "hcloud_volume" "kafka" {
-  name      = "qawave-kafka-${var.environment}"
-  size      = 50
-  location  = var.location
-  format    = "ext4"
-  
+  name     = "qawave-kafka-${var.environment}"
+  size     = 50
+  location = var.location
+  format   = "ext4"
+
   labels = {
     service     = "kafka"
     environment = var.environment
