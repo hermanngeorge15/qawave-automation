@@ -1,0 +1,58 @@
+# ArgoCD Ingress Configuration
+# Exposes ArgoCD UI via nginx-ingress
+#
+# Prerequisites:
+# - nginx-ingress controller installed
+# - TLS certificate (cert-manager or manual secret)
+#
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server
+  namespace: argocd
+  annotations:
+    nginx.ingress.kubernetes.io/ssl-passthrough: "false"
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+    nginx.ingress.kubernetes.io/force-ssl-redirect: "true"
+    # Rate limiting
+    nginx.ingress.kubernetes.io/limit-connections: "10"
+    nginx.ingress.kubernetes.io/limit-rps: "10"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argocd.qawave.io
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
+  tls:
+    - hosts:
+        - argocd.qawave.io
+      secretName: argocd-tls
+---
+# For local/development access without TLS
+apiVersion: networking.k8s.io/v1
+kind: Ingress
+metadata:
+  name: argocd-server-local
+  namespace: argocd
+  annotations:
+    nginx.ingress.kubernetes.io/backend-protocol: "HTTP"
+spec:
+  ingressClassName: nginx
+  rules:
+    - host: argocd.local
+      http:
+        paths:
+          - path: /
+            pathType: Prefix
+            backend:
+              service:
+                name: argocd-server
+                port:
+                  number: 80
