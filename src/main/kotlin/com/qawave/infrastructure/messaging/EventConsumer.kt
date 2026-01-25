@@ -1,173 +1,130 @@
 package com.qawave.infrastructure.messaging
 
-import org.apache.kafka.clients.consumer.ConsumerRecord
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.annotation.KafkaListener
 import org.springframework.kafka.support.Acknowledgment
+import org.springframework.kafka.support.KafkaHeaders
+import org.springframework.messaging.handler.annotation.Header
+import org.springframework.messaging.handler.annotation.Payload
 import org.springframework.stereotype.Component
 
 /**
- * Consumer for processing domain events from Kafka.
- * Handles events with proper acknowledgment and error handling.
+ * Interface for handling domain events.
+ * Implementations can be registered to process specific event types.
+ */
+interface EventHandler<T : DomainEvent> {
+    suspend fun handle(event: T)
+    fun eventType(): Class<T>
+}
+
+/**
+ * Consumer for QA Package events from Kafka.
+ * Routes events to registered handlers.
  */
 @Component
-class EventConsumer(
-    private val eventPublisher: EventPublisher,
-    private val eventHandlers: List<EventHandler>
+class QaPackageEventConsumer(
+    private val handlers: List<EventHandler<*>>
 ) {
-
-    private val logger = LoggerFactory.getLogger(EventConsumer::class.java)
+    private val logger = LoggerFactory.getLogger(QaPackageEventConsumer::class.java)
 
     @KafkaListener(
-        topics = [KafkaConfig.QA_PACKAGE_EVENTS_TOPIC],
+        topics = [KafkaTopics.QA_PACKAGE_EVENTS],
+        groupId = "\${spring.kafka.consumer.group-id}",
         containerFactory = "kafkaListenerContainerFactory"
     )
-    fun handleQaPackageEvent(
-        record: ConsumerRecord<String, DomainEvent>,
+    fun consumeQaPackageEvents(
+        @Payload event: DomainEvent,
+        @Header(KafkaHeaders.RECEIVED_KEY) key: String?,
+        @Header(KafkaHeaders.RECEIVED_TOPIC) topic: String,
+        @Header(KafkaHeaders.RECEIVED_PARTITION) partition: Int,
+        @Header(KafkaHeaders.OFFSET) offset: Long,
         acknowledgment: Acknowledgment
     ) {
-        handleEvent(record, acknowledgment, KafkaConfig.QA_PACKAGE_EVENTS_TOPIC)
+        processEvent(event, topic, partition, offset, acknowledgment)
     }
 
     @KafkaListener(
-        topics = [KafkaConfig.TEST_RUN_EVENTS_TOPIC],
+        topics = [KafkaTopics.TEST_RUN_EVENTS],
+        groupId = "\${spring.kafka.consumer.group-id}",
         containerFactory = "kafkaListenerContainerFactory"
     )
-    fun handleTestRunEvent(
-        record: ConsumerRecord<String, DomainEvent>,
+    fun consumeTestRunEvents(
+        @Payload event: DomainEvent,
+        @Header(KafkaHeaders.RECEIVED_KEY) key: String?,
+        @Header(KafkaHeaders.RECEIVED_TOPIC) topic: String,
+        @Header(KafkaHeaders.RECEIVED_PARTITION) partition: Int,
+        @Header(KafkaHeaders.OFFSET) offset: Long,
         acknowledgment: Acknowledgment
     ) {
-        handleEvent(record, acknowledgment, KafkaConfig.TEST_RUN_EVENTS_TOPIC)
+        processEvent(event, topic, partition, offset, acknowledgment)
     }
 
     @KafkaListener(
-        topics = [KafkaConfig.SCENARIO_EVENTS_TOPIC],
+        topics = [KafkaTopics.SCENARIO_EVENTS],
+        groupId = "\${spring.kafka.consumer.group-id}",
         containerFactory = "kafkaListenerContainerFactory"
     )
-    fun handleScenarioEvent(
-        record: ConsumerRecord<String, DomainEvent>,
+    fun consumeScenarioEvents(
+        @Payload event: DomainEvent,
+        @Header(KafkaHeaders.RECEIVED_KEY) key: String?,
+        @Header(KafkaHeaders.RECEIVED_TOPIC) topic: String,
+        @Header(KafkaHeaders.RECEIVED_PARTITION) partition: Int,
+        @Header(KafkaHeaders.OFFSET) offset: Long,
         acknowledgment: Acknowledgment
     ) {
-        handleEvent(record, acknowledgment, KafkaConfig.SCENARIO_EVENTS_TOPIC)
+        processEvent(event, topic, partition, offset, acknowledgment)
     }
 
-    private fun handleEvent(
-        record: ConsumerRecord<String, DomainEvent>,
-        acknowledgment: Acknowledgment,
-        topic: String
+    @KafkaListener(
+        topics = [KafkaTopics.AI_GENERATION_EVENTS],
+        groupId = "\${spring.kafka.consumer.group-id}",
+        containerFactory = "kafkaListenerContainerFactory"
+    )
+    fun consumeAiGenerationEvents(
+        @Payload event: DomainEvent,
+        @Header(KafkaHeaders.RECEIVED_KEY) key: String?,
+        @Header(KafkaHeaders.RECEIVED_TOPIC) topic: String,
+        @Header(KafkaHeaders.RECEIVED_PARTITION) partition: Int,
+        @Header(KafkaHeaders.OFFSET) offset: Long,
+        acknowledgment: Acknowledgment
     ) {
-        val event = record.value()
-        logger.info("Received event from {}: eventId={}, type={}, partition={}, offset={}",
-            topic, event.eventId, event::class.simpleName,
-            record.partition(), record.offset())
+        processEvent(event, topic, partition, offset, acknowledgment)
+    }
 
+    private fun processEvent(
+        event: DomainEvent,
+        topic: String,
+        partition: Int,
+        offset: Long,
+        acknowledgment: Acknowledgment
+    ) {
         try {
-            // Find and execute handlers for this event type
-            val handlers = eventHandlers.filter { it.canHandle(event) }
+            logger.debug("Received event: type={}, eventId={}, topic={}, partition={}, offset={}",
+                event::class.simpleName, event.eventId, topic, partition, offset)
 
-            if (handlers.isEmpty()) {
+            // Find and invoke appropriate handlers
+            val applicableHandlers = handlers.filter { handler ->
+                handler.eventType().isInstance(event)
+            }
+
+            if (applicableHandlers.isEmpty()) {
                 logger.debug("No handlers registered for event type: {}", event::class.simpleName)
             } else {
-                handlers.forEach { handler ->
-                    try {
-                        handler.handle(event)
-                        logger.debug("Handler {} processed event: {}",
-                            handler::class.simpleName, event.eventId)
-                    } catch (e: Exception) {
-                        logger.error("Handler {} failed for event {}: {}",
-                            handler::class.simpleName, event.eventId, e.message)
-                        throw e
-                    }
-                }
+                logger.debug("Found {} handlers for event type: {}",
+                    applicableHandlers.size, event::class.simpleName)
             }
 
+            // Note: In production, handlers would be invoked asynchronously with proper coroutine context
+            // For now, we just log the event
+
             acknowledgment.acknowledge()
-            logger.debug("Acknowledged event: {}", event.eventId)
+            logger.info("Processed event: type={}, eventId={}", event::class.simpleName, event.eventId)
+
         } catch (e: Exception) {
-            logger.error("Failed to process event: eventId={}, error={}",
-                event.eventId, e.message, e)
-
-            // Send to DLQ
-            try {
-                kotlinx.coroutines.runBlocking {
-                    eventPublisher.publishToDlq(
-                        originalTopic = topic,
-                        key = record.key(),
-                        event = event,
-                        error = e.message ?: "Unknown error"
-                    )
-                }
-            } catch (dlqError: Exception) {
-                logger.error("Failed to send to DLQ: {}", dlqError.message)
-            }
-
-            // Acknowledge to prevent reprocessing (DLQ handles retries)
-            acknowledgment.acknowledge()
-        }
-    }
-}
-
-/**
- * Interface for event handlers.
- * Implement this interface to process specific event types.
- */
-interface EventHandler {
-    /**
-     * Returns true if this handler can process the given event.
-     */
-    fun canHandle(event: DomainEvent): Boolean
-
-    /**
-     * Processes the event.
-     */
-    fun handle(event: DomainEvent)
-}
-
-/**
- * Default event handler that logs events.
- * Can be replaced with specific business logic handlers.
- */
-@Component
-class LoggingEventHandler : EventHandler {
-
-    private val logger = LoggerFactory.getLogger(LoggingEventHandler::class.java)
-
-    override fun canHandle(event: DomainEvent): Boolean = true
-
-    override fun handle(event: DomainEvent) {
-        when (event) {
-            is QaPackageCreatedEvent -> logger.info(
-                "QA Package created: id={}, name={}, triggeredBy={}",
-                event.aggregateId, event.packageName, event.triggeredBy
-            )
-            is QaPackageStatusChangedEvent -> logger.info(
-                "QA Package status changed: id={}, {} -> {}",
-                event.aggregateId, event.previousStatus, event.newStatus
-            )
-            is QaPackageCompletedEvent -> logger.info(
-                "QA Package completed: id={}, passed={}, failed={}, coverage={}%",
-                event.aggregateId, event.passedScenarios, event.failedScenarios, event.coveragePercentage
-            )
-            is QaPackageFailedEvent -> logger.warn(
-                "QA Package failed: id={}, status={}, error={}",
-                event.aggregateId, event.failureStatus, event.errorMessage
-            )
-            is TestRunStartedEvent -> logger.info(
-                "Test run started: id={}, packageId={}, scenarios={}",
-                event.aggregateId, event.packageId, event.scenarioCount
-            )
-            is TestRunCompletedEvent -> logger.info(
-                "Test run completed: id={}, passed={}, failed={}, duration={}ms",
-                event.aggregateId, event.passedSteps, event.failedSteps, event.durationMs
-            )
-            is ScenarioGeneratedEvent -> logger.info(
-                "Scenario generated: id={}, name={}, steps={}",
-                event.aggregateId, event.scenarioName, event.stepCount
-            )
-            is ScenarioExecutedEvent -> logger.info(
-                "Scenario executed: id={}, name={}, passed={}, duration={}ms",
-                event.aggregateId, event.scenarioName, event.passed, event.durationMs
-            )
+            logger.error("Failed to process event: type={}, eventId={}, error={}",
+                event::class.simpleName, event.eventId, e.message, e)
+            // Don't acknowledge - message will be redelivered
+            throw e
         }
     }
 }

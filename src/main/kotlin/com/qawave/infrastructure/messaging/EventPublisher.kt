@@ -3,102 +3,67 @@ package com.qawave.infrastructure.messaging
 import kotlinx.coroutines.future.await
 import org.slf4j.LoggerFactory
 import org.springframework.kafka.core.KafkaTemplate
-import org.springframework.kafka.support.SendResult
-import org.springframework.stereotype.Component
+import org.springframework.stereotype.Service
 
 /**
  * Service for publishing domain events to Kafka.
- * Provides suspend functions for non-blocking event publishing.
+ * Provides type-safe event publishing with automatic topic routing.
  */
-@Component
+@Service
 class EventPublisher(
     private val kafkaTemplate: KafkaTemplate<String, Any>
 ) {
-
     private val logger = LoggerFactory.getLogger(EventPublisher::class.java)
 
     /**
-     * Publishes a QA package event to the qa-package-events topic.
+     * Publishes a domain event to the appropriate Kafka topic.
+     * The topic is determined by the event type.
      */
-    suspend fun publishQaPackageEvent(event: DomainEvent): SendResult<String, Any> {
-        return publish(KafkaConfig.QA_PACKAGE_EVENTS_TOPIC, event.aggregateId, event)
-    }
+    suspend fun publish(event: DomainEvent) {
+        val topic = getTopicForEvent(event)
+        val key = event.aggregateId
 
-    /**
-     * Publishes a test run event to the test-run-events topic.
-     */
-    suspend fun publishTestRunEvent(event: DomainEvent): SendResult<String, Any> {
-        return publish(KafkaConfig.TEST_RUN_EVENTS_TOPIC, event.aggregateId, event)
-    }
+        try {
+            logger.debug("Publishing event to topic '{}': eventId={}, aggregateId={}",
+                topic, event.eventId, event.aggregateId)
 
-    /**
-     * Publishes a scenario event to the scenario-events topic.
-     */
-    suspend fun publishScenarioEvent(event: DomainEvent): SendResult<String, Any> {
-        return publish(KafkaConfig.SCENARIO_EVENTS_TOPIC, event.aggregateId, event)
-    }
+            kafkaTemplate.send(topic, key, event).await()
 
-    /**
-     * Publishes an event to the specified topic.
-     */
-    private suspend fun publish(
-        topic: String,
-        key: String,
-        event: DomainEvent
-    ): SendResult<String, Any> {
-        logger.debug("Publishing event to {}: eventId={}, aggregateId={}",
-            topic, event.eventId, event.aggregateId)
-
-        return try {
-            val result = kafkaTemplate.send(topic, key, event).await()
-            logger.info("Published event to {}: eventId={}, partition={}, offset={}",
-                topic, event.eventId,
-                result.recordMetadata.partition(),
-                result.recordMetadata.offset())
-            result
+            logger.info("Published event: type={}, eventId={}, aggregateId={}",
+                event::class.simpleName, event.eventId, event.aggregateId)
         } catch (e: Exception) {
-            logger.error("Failed to publish event to {}: eventId={}, error={}",
-                topic, event.eventId, e.message)
-            throw EventPublishException("Failed to publish event: ${event.eventId}", e)
+            logger.error("Failed to publish event: type={}, eventId={}, error={}",
+                event::class.simpleName, event.eventId, e.message)
+            throw EventPublishException("Failed to publish event ${event.eventId}", e)
         }
     }
 
     /**
-     * Publishes a message to the dead letter queue.
+     * Publishes multiple events in order.
      */
-    suspend fun publishToDlq(
-        originalTopic: String,
-        key: String,
-        event: DomainEvent,
-        error: String
-    ) {
-        val dlqMessage = DeadLetterMessage(
-            originalTopic = originalTopic,
-            key = key,
-            event = event,
-            error = error
-        )
+    suspend fun publishAll(events: List<DomainEvent>) {
+        events.forEach { publish(it) }
+    }
 
-        try {
-            kafkaTemplate.send(KafkaConfig.DLQ_TOPIC, key, dlqMessage).await()
-            logger.warn("Published to DLQ: originalTopic={}, eventId={}",
-                originalTopic, event.eventId)
-        } catch (e: Exception) {
-            logger.error("Failed to publish to DLQ: eventId={}", event.eventId, e)
+    /**
+     * Determines the Kafka topic for a given event type.
+     */
+    private fun getTopicForEvent(event: DomainEvent): String {
+        return when (event) {
+            is QaPackageCreatedEvent,
+            is QaPackageStatusChangedEvent,
+            is QaPackageCompletedEvent -> KafkaTopics.QA_PACKAGE_EVENTS
+
+            is TestRunStartedEvent,
+            is TestRunCompletedEvent -> KafkaTopics.TEST_RUN_EVENTS
+
+            is ScenarioGeneratedEvent -> KafkaTopics.SCENARIO_EVENTS
+
+            is AiGenerationRequestedEvent,
+            is AiGenerationCompletedEvent -> KafkaTopics.AI_GENERATION_EVENTS
         }
     }
 }
-
-/**
- * Wrapper for messages sent to the dead letter queue.
- */
-data class DeadLetterMessage(
-    val originalTopic: String,
-    val key: String,
-    val event: DomainEvent,
-    val error: String,
-    val timestamp: java.time.Instant = java.time.Instant.now()
-)
 
 /**
  * Exception thrown when event publishing fails.

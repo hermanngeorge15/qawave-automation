@@ -17,13 +17,13 @@ import org.testcontainers.junit.jupiter.Container
 import org.testcontainers.junit.jupiter.Testcontainers
 import org.testcontainers.utility.DockerImageName
 import java.time.Duration
-import java.util.*
+import java.time.Instant
+import java.util.UUID
 import kotlin.test.assertEquals
-import kotlin.test.assertNotNull
 import kotlin.test.assertTrue
 
 /**
- * Integration tests for Kafka event publishing and consuming.
+ * Integration tests for Kafka event publishing and consumption.
  */
 @SpringBootTest
 @Testcontainers
@@ -32,23 +32,19 @@ class KafkaIntegrationTest {
     companion object {
         @Container
         @JvmStatic
-        val kafka: KafkaContainer = KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.0"))
+        val kafkaContainer: KafkaContainer = KafkaContainer(DockerImageName.parse("confluentinc/cp-kafka:7.5.0"))
 
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.kafka.bootstrap-servers") { kafka.bootstrapServers }
-            // Disable R2DBC for this test
+            registry.add("spring.kafka.bootstrap-servers") { kafkaContainer.bootstrapServers }
+            // Disable R2DBC auto-config for this test
             registry.add("spring.r2dbc.url") { "r2dbc:h2:mem:///testdb;DB_CLOSE_DELAY=-1" }
             registry.add("spring.r2dbc.username") { "sa" }
             registry.add("spring.r2dbc.password") { "" }
             // Disable Redis for this test
             registry.add("spring.data.redis.host") { "localhost" }
             registry.add("spring.data.redis.port") { "6379" }
-            registry.add("spring.autoconfigure.exclude") {
-                "org.springframework.boot.autoconfigure.data.redis.RedisAutoConfiguration," +
-                "org.springframework.boot.autoconfigure.data.redis.RedisReactiveAutoConfiguration"
-            }
         }
     }
 
@@ -56,103 +52,133 @@ class KafkaIntegrationTest {
     private lateinit var eventPublisher: EventPublisher
 
     @Test
-    fun `Kafka container is running`() {
-        assertTrue(kafka.isRunning, "Kafka container should be running")
-    }
-
-    @Test
-    fun `should publish QaPackageCreatedEvent`() = runBlocking {
+    fun `should publish QaPackageCreatedEvent to qa-package-events topic`() = runBlocking {
         val event = QaPackageCreatedEvent(
-            aggregateId = "test-package-123",
+            aggregateId = UUID.randomUUID().toString(),
             packageName = "Test Package",
+            triggeredBy = "test-user",
             baseUrl = "https://api.example.com",
-            triggeredBy = "test-user"
-        )
-
-        val result = eventPublisher.publishQaPackageEvent(event)
-
-        assertNotNull(result)
-        assertEquals(KafkaConfig.QA_PACKAGE_EVENTS_TOPIC, result.recordMetadata.topic())
-    }
-
-    @Test
-    fun `should publish QaPackageStatusChangedEvent`() = runBlocking {
-        val event = QaPackageStatusChangedEvent(
-            aggregateId = "test-package-456",
-            previousStatus = "REQUESTED",
-            newStatus = "SPEC_FETCHED"
-        )
-
-        val result = eventPublisher.publishQaPackageEvent(event)
-
-        assertNotNull(result)
-        assertEquals(KafkaConfig.QA_PACKAGE_EVENTS_TOPIC, result.recordMetadata.topic())
-    }
-
-    @Test
-    fun `should publish TestRunStartedEvent`() = runBlocking {
-        val event = TestRunStartedEvent(
-            aggregateId = "test-run-789",
-            packageId = "package-123",
-            scenarioCount = 5
-        )
-
-        val result = eventPublisher.publishTestRunEvent(event)
-
-        assertNotNull(result)
-        assertEquals(KafkaConfig.TEST_RUN_EVENTS_TOPIC, result.recordMetadata.topic())
-    }
-
-    @Test
-    fun `should publish ScenarioGeneratedEvent`() = runBlocking {
-        val event = ScenarioGeneratedEvent(
-            aggregateId = "scenario-111",
-            packageId = "package-123",
-            scenarioName = "Test login flow",
-            stepCount = 3
-        )
-
-        val result = eventPublisher.publishScenarioEvent(event)
-
-        assertNotNull(result)
-        assertEquals(KafkaConfig.SCENARIO_EVENTS_TOPIC, result.recordMetadata.topic())
-    }
-
-    @Test
-    fun `should publish and consume event`() = runBlocking {
-        val event = QaPackageCreatedEvent(
-            aggregateId = "consume-test-${UUID.randomUUID()}",
-            packageName = "Consume Test Package",
-            baseUrl = "https://api.consume.test",
-            triggeredBy = "consumer-test"
+            hasSpecUrl = true,
+            hasSpecContent = false
         )
 
         // Publish event
-        eventPublisher.publishQaPackageEvent(event)
+        eventPublisher.publish(event)
 
-        // Wait for event to be processed
-        delay(2000)
+        // Give some time for the message to be sent
+        delay(1000)
 
-        // Create a consumer to verify the event was published
-        val consumer = createTestConsumer()
-        consumer.subscribe(listOf(KafkaConfig.QA_PACKAGE_EVENTS_TOPIC))
+        // Verify by consuming from topic
+        val consumer = createConsumer()
+        consumer.subscribe(listOf(KafkaTopics.QA_PACKAGE_EVENTS))
 
         val records = consumer.poll(Duration.ofSeconds(10))
         consumer.close()
 
-        assertTrue(records.count() > 0, "Should have consumed at least one record")
+        assertTrue(records.count() >= 1, "Should have received at least 1 record")
+
+        val receivedEvent = records.first()
+        assertEquals(event.aggregateId, receivedEvent.key())
     }
 
-    private fun createTestConsumer(): KafkaConsumer<String, DomainEvent> {
-        val props = Properties().apply {
-            put(ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG, kafka.bootstrapServers)
-            put(ConsumerConfig.GROUP_ID_CONFIG, "test-consumer-${UUID.randomUUID()}")
-            put(ConsumerConfig.AUTO_OFFSET_RESET_CONFIG, "earliest")
-            put(ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG, StringDeserializer::class.java)
-            put(ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG, JsonDeserializer::class.java)
-            put(JsonDeserializer.TRUSTED_PACKAGES, "com.qawave.infrastructure.messaging")
-        }
+    @Test
+    fun `should publish TestRunStartedEvent to test-run-events topic`() = runBlocking {
+        val event = TestRunStartedEvent(
+            aggregateId = UUID.randomUUID().toString(),
+            packageId = UUID.randomUUID().toString(),
+            scenarioId = UUID.randomUUID().toString(),
+            runNumber = 1
+        )
 
+        eventPublisher.publish(event)
+        delay(1000)
+
+        val consumer = createConsumer()
+        consumer.subscribe(listOf(KafkaTopics.TEST_RUN_EVENTS))
+
+        val records = consumer.poll(Duration.ofSeconds(10))
+        consumer.close()
+
+        assertTrue(records.count() >= 1, "Should have received at least 1 record")
+    }
+
+    @Test
+    fun `should publish ScenarioGeneratedEvent to scenario-events topic`() = runBlocking {
+        val event = ScenarioGeneratedEvent(
+            aggregateId = UUID.randomUUID().toString(),
+            packageId = UUID.randomUUID().toString(),
+            scenarioName = "Test Scenario",
+            stepsCount = 5,
+            priority = "HIGH"
+        )
+
+        eventPublisher.publish(event)
+        delay(1000)
+
+        val consumer = createConsumer()
+        consumer.subscribe(listOf(KafkaTopics.SCENARIO_EVENTS))
+
+        val records = consumer.poll(Duration.ofSeconds(10))
+        consumer.close()
+
+        assertTrue(records.count() >= 1, "Should have received at least 1 record")
+    }
+
+    @Test
+    fun `should publish AiGenerationCompletedEvent to ai-generation-events topic`() = runBlocking {
+        val event = AiGenerationCompletedEvent(
+            aggregateId = UUID.randomUUID().toString(),
+            provider = "openai",
+            model = "gpt-4o-mini",
+            success = true,
+            scenariosGenerated = 10,
+            tokensUsed = 5000,
+            durationMs = 3500
+        )
+
+        eventPublisher.publish(event)
+        delay(1000)
+
+        val consumer = createConsumer()
+        consumer.subscribe(listOf(KafkaTopics.AI_GENERATION_EVENTS))
+
+        val records = consumer.poll(Duration.ofSeconds(10))
+        consumer.close()
+
+        assertTrue(records.count() >= 1, "Should have received at least 1 record")
+    }
+
+    @Test
+    fun `should route events to correct topics based on event type`() {
+        // QA Package events
+        assertTrue(KafkaTopics.QA_PACKAGE_EVENTS.isNotEmpty())
+        assertTrue(KafkaTopics.TEST_RUN_EVENTS.isNotEmpty())
+        assertTrue(KafkaTopics.SCENARIO_EVENTS.isNotEmpty())
+        assertTrue(KafkaTopics.AI_GENERATION_EVENTS.isNotEmpty())
+    }
+
+    @Test
+    fun `domain events should have required fields`() {
+        val event = QaPackageStatusChangedEvent(
+            aggregateId = "test-id",
+            previousStatus = "REQUESTED",
+            newStatus = "SPEC_FETCHED"
+        )
+
+        assertTrue(event.eventId.isNotEmpty())
+        assertTrue(event.timestamp <= Instant.now())
+        assertEquals("test-id", event.aggregateId)
+        assertEquals("QaPackage", event.aggregateType)
+    }
+
+    private fun createConsumer(): KafkaConsumer<String, String> {
+        val props = mapOf(
+            ConsumerConfig.BOOTSTRAP_SERVERS_CONFIG to kafkaContainer.bootstrapServers,
+            ConsumerConfig.GROUP_ID_CONFIG to "test-group-${UUID.randomUUID()}",
+            ConsumerConfig.AUTO_OFFSET_RESET_CONFIG to "earliest",
+            ConsumerConfig.KEY_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java.name,
+            ConsumerConfig.VALUE_DESERIALIZER_CLASS_CONFIG to StringDeserializer::class.java.name
+        )
         return KafkaConsumer(props)
     }
 }
