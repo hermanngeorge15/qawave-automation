@@ -111,6 +111,7 @@ jobs:
     name: Build & Push
     needs: [test, lint]
     runs-on: ubuntu-latest
+    if: github.event_name == 'push'  # Only build/push on merge to main
     permissions:
       contents: read
       packages: write
