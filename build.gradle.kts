@@ -73,6 +73,7 @@ dependencies {
     testImplementation("org.testcontainers:kafka")
     testImplementation("org.testcontainers:r2dbc")
     testImplementation("io.mockk:mockk:1.13.9")
+    testImplementation("org.jetbrains.kotlin:kotlin-test")
 
     // H2 for testing
     testRuntimeOnly("io.r2dbc:r2dbc-h2")
