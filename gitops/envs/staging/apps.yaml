@@ -9,7 +9,7 @@ spec:
   source:
     repoURL: https://github.com/hermanngeorge15/qawave-automation.git
     targetRevision: main
-    path: test-env/gitops/envs/staging/postgresql
+    path: gitops/envs/staging/postgresql
   destination:
     server: https://kubernetes.default.svc
     namespace: staging
@@ -30,7 +30,7 @@ spec:
   source:
     repoURL: https://github.com/hermanngeorge15/qawave-automation.git
     targetRevision: main
-    path: test-env/gitops/envs/staging/redis
+    path: gitops/envs/staging/redis
   destination:
     server: https://kubernetes.default.svc
     namespace: staging
@@ -51,7 +51,7 @@ spec:
   source:
     repoURL: https://github.com/hermanngeorge15/qawave-automation.git
     targetRevision: main
-    path: test-env/gitops/envs/staging/kafka
+    path: gitops/envs/staging/kafka
   destination:
     server: https://kubernetes.default.svc
     namespace: staging
