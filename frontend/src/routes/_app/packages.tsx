@@ -1,7 +1,7 @@
 import { useState } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
+import { createFileRoute } from '@tanstack/react-router'
 import { usePackages } from '@/hooks'
-import { PackageCard } from '@/components/packages'
+import { PackageCard, CreatePackageModal } from '@/components/packages'
 import { PackagesListSkeleton, EmptyState } from '@/components/ui'
 
 export const Route = createFileRoute('/_app/packages')({
@@ -11,6 +11,7 @@ export const Route = createFileRoute('/_app/packages')({
 function PackagesPage() {
   const [page, setPage] = useState(0)
   const [search, setSearch] = useState('')
+  const [isCreateModalOpen, setIsCreateModalOpen] = useState(false)
   const pageSize = 12
 
   const { data, isLoading, isError, error } = usePackages(page, pageSize)
@@ -30,9 +31,14 @@ function PackagesPage() {
           <h1 className="page-title">QA Packages</h1>
           <p className="text-secondary-400">Manage your QA automation packages</p>
         </div>
-        <Link to="/packages/new" className="btn btn-primary">
+        <button
+          onClick={() => {
+            setIsCreateModalOpen(true)
+          }}
+          className="btn btn-primary"
+        >
           + New Package
-        </Link>
+        </button>
       </header>
 
       {/* Search */}
@@ -74,9 +80,14 @@ function PackagesPage() {
           }
           action={
             !search && (
-              <Link to="/packages/new" className="btn btn-primary">
+              <button
+                onClick={() => {
+                  setIsCreateModalOpen(true)
+                }}
+                className="btn btn-primary"
+              >
                 Create Package
-              </Link>
+              </button>
             )
           }
           icon={
@@ -131,6 +142,14 @@ function PackagesPage() {
           )}
         </>
       )}
+
+      {/* Create Package Modal */}
+      <CreatePackageModal
+        isOpen={isCreateModalOpen}
+        onClose={() => {
+          setIsCreateModalOpen(false)
+        }}
+      />
     </div>
   )
 }
