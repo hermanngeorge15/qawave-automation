@@ -12,7 +12,7 @@ export {
 
 // API Modules
 export { default as packagesApi, packagesApi as packages } from './packages'
-export { default as scenariosApi, scenariosApi as scenarios } from './scenarios'
+export { default as scenariosApi, scenariosApi as scenarios, type ScenariosListParams } from './scenarios'
 export { default as runsApi, runsApi as runs } from './runs'
 
 // Types

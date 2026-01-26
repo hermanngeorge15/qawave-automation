@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { scenariosApi } from '@/api'
+import { scenariosApi, type ScenariosListParams } from '@/api/scenarios'
 import { packageKeys } from './usePackages'
 
 // Query key factory
 export const scenarioKeys = {
   all: ['scenarios'] as const,
   lists: () => [...scenarioKeys.all, 'list'] as const,
+  list: (params: ScenariosListParams) => [...scenarioKeys.lists(), params] as const,
   listByPackage: (packageId: string, page: number, size: number) =>
     [...scenarioKeys.lists(), { packageId, page, size }] as const,
   details: () => [...scenarioKeys.all, 'detail'] as const,
@@ -13,6 +14,13 @@ export const scenarioKeys = {
 }
 
 // Hooks
+export function useScenarios(params: ScenariosListParams = {}) {
+  return useQuery({
+    queryKey: scenarioKeys.list(params),
+    queryFn: ({ signal }) => scenariosApi.list(params, signal),
+  })
+}
+
 export function usePackageScenarios(packageId: string, page = 0, size = 20) {
   return useQuery({
     queryKey: scenarioKeys.listByPackage(packageId, page, size),
