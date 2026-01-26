@@ -1,0 +1,89 @@
+# ArgoCD Application for Keycloak
+# Identity and Access Management Server
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qawave-keycloak
+  namespace: argocd
+  labels:
+    app: qawave
+    component: keycloak
+    environment: production
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Deploy after data services
+spec:
+  project: qawave
+  source:
+    repoURL: https://charts.bitnami.com/bitnami
+    chart: keycloak
+    targetRevision: "24.*"
+    helm:
+      valueFiles:
+        - values.yaml
+      # Override values inline if needed
+      parameters:
+        - name: auth.existingSecret
+          value: keycloak-secrets
+        - name: externalDatabase.existingSecret
+          value: keycloak-db-secrets
+        - name: externalDatabase.existingSecretPasswordKey
+          value: password
+      # Additional values from repository
+      fileParameters:
+        - name: values.yaml
+          path: infrastructure/kubernetes/base/auth/keycloak/values.yaml
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: qawave
+  syncPolicy:
+    automated:
+      prune: false  # Don't auto-delete identity provider
+      selfHeal: true
+      allowEmpty: false
+    syncOptions:
+      - CreateNamespace=true
+      - PrunePropagationPolicy=foreground
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 3m
+  ignoreDifferences:
+    - group: ""
+      kind: Secret
+      jsonPointers:
+        - /data
+  revisionHistoryLimit: 5
+---
+# Alternative: Deploy Keycloak from repository values
+# Use this if ArgoCD cannot directly access Helm chart with repo values
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qawave-keycloak-config
+  namespace: argocd
+  labels:
+    app: qawave
+    component: keycloak-config
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"  # Deploy config first
+spec:
+  project: qawave
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: infrastructure/kubernetes/base/auth/keycloak
+    directory:
+      recurse: false
+      exclude: "values.yaml|README.md|secrets.yaml*"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: qawave
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

@@ -1,0 +1,40 @@
+# ConfigMap for Keycloak database initialization
+# This SQL script creates the keycloak database and user in PostgreSQL
+#
+# Run this before deploying Keycloak:
+#   kubectl exec -it postgresql-0 -n qawave -- psql -U postgres -f /tmp/init-keycloak.sql
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-init-db
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: database-init
+data:
+  init-keycloak.sql: |
+    -- Create keycloak database and user
+    -- Run as postgres superuser
+
+    -- Create user if not exists
+    DO $$
+    BEGIN
+      IF NOT EXISTS (SELECT FROM pg_catalog.pg_roles WHERE rolname = 'keycloak') THEN
+        CREATE USER keycloak WITH PASSWORD 'REPLACE_WITH_ACTUAL_PASSWORD';
+      END IF;
+    END
+    $$;
+
+    -- Create database if not exists
+    SELECT 'CREATE DATABASE keycloak OWNER keycloak'
+    WHERE NOT EXISTS (SELECT FROM pg_database WHERE datname = 'keycloak')\gexec
+
+    -- Grant privileges
+    GRANT ALL PRIVILEGES ON DATABASE keycloak TO keycloak;
+
+    -- Connect to keycloak database and set up permissions
+    \c keycloak
+    GRANT ALL ON SCHEMA public TO keycloak;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON TABLES TO keycloak;
+    ALTER DEFAULT PRIVILEGES IN SCHEMA public GRANT ALL ON SEQUENCES TO keycloak;

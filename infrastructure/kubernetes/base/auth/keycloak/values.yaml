@@ -1,0 +1,209 @@
+# Keycloak Helm Values for QAWave
+# Chart: bitnami/keycloak
+# Version: 24.x
+#
+# Install:
+#   helm repo add bitnami https://charts.bitnami.com/bitnami
+#   helm install keycloak bitnami/keycloak -n qawave -f values.yaml
+#
+
+# Keycloak version
+image:
+  tag: "24.0.4"
+
+# Authentication configuration
+auth:
+  adminUser: admin
+  # Admin password should be overridden via --set or secrets
+  # existingSecret: keycloak-secrets
+  # passwordSecretKey: admin-password
+
+# Production mode
+production: true
+
+# Proxy configuration for running behind load balancer
+proxy: edge
+
+# HTTP/HTTPS configuration
+httpRelativePath: "/"
+
+# Logging configuration
+logging:
+  level: INFO
+
+# PostgreSQL database configuration
+postgresql:
+  enabled: false  # Use external PostgreSQL
+
+externalDatabase:
+  host: postgresql.qawave.svc.cluster.local
+  port: 5432
+  database: keycloak
+  user: keycloak
+  # Password should be overridden via --set or secrets
+  # existingSecret: keycloak-db-secrets
+  # existingSecretPasswordKey: password
+
+# Service configuration
+service:
+  type: ClusterIP
+  ports:
+    http: 80
+    https: 443
+
+# Ingress configuration
+ingress:
+  enabled: true
+  ingressClassName: nginx
+  hostname: auth.qawave.local
+  path: /
+  pathType: Prefix
+  annotations:
+    cert-manager.io/cluster-issuer: "letsencrypt-prod"
+    nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+    nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+  tls: true
+  # extraTls:
+  #   - hosts:
+  #       - auth.qawave.local
+  #     secretName: keycloak-tls
+
+# Resource limits
+resources:
+  requests:
+    cpu: 500m
+    memory: 1Gi
+  limits:
+    cpu: 2000m
+    memory: 2Gi
+
+# Replica count (for HA in production)
+replicaCount: 1
+
+# Pod disruption budget
+pdb:
+  create: true
+  minAvailable: 1
+
+# Liveness and readiness probes
+livenessProbe:
+  enabled: true
+  initialDelaySeconds: 120
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+
+readinessProbe:
+  enabled: true
+  initialDelaySeconds: 30
+  periodSeconds: 10
+  timeoutSeconds: 5
+  failureThreshold: 6
+  successThreshold: 1
+
+# Startup probe for slow startup scenarios
+startupProbe:
+  enabled: true
+  initialDelaySeconds: 60
+  periodSeconds: 5
+  timeoutSeconds: 1
+  failureThreshold: 60
+  successThreshold: 1
+
+# Extra environment variables for Keycloak configuration
+extraEnvVars:
+  - name: KC_HEALTH_ENABLED
+    value: "true"
+  - name: KC_METRICS_ENABLED
+    value: "true"
+  - name: KC_HOSTNAME_STRICT
+    value: "false"
+  - name: KC_HOSTNAME_STRICT_HTTPS
+    value: "false"
+  # Cache configuration for clustering
+  - name: KC_CACHE
+    value: "local"  # Change to "ispn" for clustered setup
+  # Theme configuration
+  - name: KC_SPI_THEME_DEFAULT
+    value: "keycloak"
+
+# Pod annotations for monitoring
+podAnnotations:
+  prometheus.io/scrape: "true"
+  prometheus.io/port: "8080"
+  prometheus.io/path: "/metrics"
+
+# Pod labels
+podLabels:
+  app.kubernetes.io/component: identity-provider
+
+# Affinity rules
+affinity:
+  podAntiAffinity:
+    preferredDuringSchedulingIgnoredDuringExecution:
+      - weight: 100
+        podAffinityTerm:
+          labelSelector:
+            matchLabels:
+              app.kubernetes.io/name: keycloak
+          topologyKey: kubernetes.io/hostname
+
+# Service account
+serviceAccount:
+  create: true
+  name: keycloak
+
+# Network policy
+networkPolicy:
+  enabled: true
+  allowExternal: true
+  additionalRules:
+    - ports:
+        - port: 8080
+          protocol: TCP
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: ingress-nginx
+    - ports:
+        - port: 8080
+          protocol: TCP
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: qawave
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: backend
+    - ports:
+        - port: 8080
+          protocol: TCP
+      from:
+        - namespaceSelector:
+            matchLabels:
+              kubernetes.io/metadata.name: qawave
+          podSelector:
+            matchLabels:
+              app.kubernetes.io/name: frontend
+
+# Metrics for Prometheus
+metrics:
+  enabled: true
+  serviceMonitor:
+    enabled: false  # Enable if using Prometheus Operator
+    interval: 30s
+
+# Init containers for database readiness check
+initContainers:
+  - name: wait-for-postgresql
+    image: busybox:1.36
+    command:
+      - sh
+      - -c
+      - |
+        until nc -z postgresql.qawave.svc.cluster.local 5432; do
+          echo "Waiting for PostgreSQL..."
+          sleep 2
+        done
+        echo "PostgreSQL is ready"
