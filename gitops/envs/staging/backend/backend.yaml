@@ -1,0 +1,113 @@
+---
+apiVersion: v1
+kind: Secret
+metadata:
+  name: backend-secrets
+  namespace: staging
+type: Opaque
+stringData:
+  SPRING_R2DBC_USERNAME: qawave
+  SPRING_R2DBC_PASSWORD: qawave-staging-app-2024
+  SPRING_DATA_REDIS_PASSWORD: qawave-staging-redis-2024
+---
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: backend
+  namespace: staging
+  labels:
+    app: qawave
+    component: backend
+spec:
+  replicas: 1
+  selector:
+    matchLabels:
+      app: qawave
+      component: backend
+  template:
+    metadata:
+      labels:
+        app: qawave
+        component: backend
+      annotations:
+        prometheus.io/scrape: "true"
+        prometheus.io/port: "8080"
+        prometheus.io/path: "/actuator/prometheus"
+    spec:
+      containers:
+        - name: backend
+          image: ghcr.io/hermanngeorge15/qawave-backend:latest
+          imagePullPolicy: Always
+          ports:
+            - name: http
+              containerPort: 8080
+          env:
+            - name: SPRING_PROFILES_ACTIVE
+              value: "staging"
+            - name: SPRING_R2DBC_URL
+              value: "r2dbc:postgresql://postgresql.staging.svc.cluster.local:5432/qawave"
+            - name: SPRING_R2DBC_USERNAME
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: SPRING_R2DBC_USERNAME
+            - name: SPRING_R2DBC_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: SPRING_R2DBC_PASSWORD
+            - name: SPRING_DATA_REDIS_HOST
+              value: "redis.staging.svc.cluster.local"
+            - name: SPRING_DATA_REDIS_PORT
+              value: "6379"
+            - name: SPRING_DATA_REDIS_PASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: backend-secrets
+                  key: SPRING_DATA_REDIS_PASSWORD
+            - name: SPRING_KAFKA_BOOTSTRAP_SERVERS
+              value: "kafka.staging.svc.cluster.local:9092"
+            - name: SERVER_PORT
+              value: "8080"
+          resources:
+            requests:
+              memory: "512Mi"
+              cpu: "250m"
+            limits:
+              memory: "1Gi"
+              cpu: "1000m"
+          livenessProbe:
+            httpGet:
+              path: /actuator/health/liveness
+              port: http
+            initialDelaySeconds: 90
+            periodSeconds: 10
+            timeoutSeconds: 5
+            failureThreshold: 3
+          readinessProbe:
+            httpGet:
+              path: /actuator/health/readiness
+              port: http
+            initialDelaySeconds: 60
+            periodSeconds: 5
+            timeoutSeconds: 3
+            failureThreshold: 3
+---
+apiVersion: v1
+kind: Service
+metadata:
+  name: backend
+  namespace: staging
+  labels:
+    app: qawave
+    component: backend
+spec:
+  type: ClusterIP
+  ports:
+    - port: 8080
+      targetPort: http
+      protocol: TCP
+      name: http
+  selector:
+    app: qawave
+    component: backend

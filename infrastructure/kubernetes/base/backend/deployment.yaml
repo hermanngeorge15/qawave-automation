@@ -33,7 +33,7 @@ spec:
         fsGroup: 1000
       containers:
         - name: backend
-          image: ghcr.io/your-org/qawave/backend:latest
+          image: ghcr.io/hermanngeorge15/qawave-backend:latest
           imagePullPolicy: Always
           ports:
             - name: http
