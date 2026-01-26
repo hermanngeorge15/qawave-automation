@@ -70,6 +70,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'gradle'
+          cache-dependency-path: backend/*.gradle*
 
       - name: Grant execute permission for gradlew
         working-directory: backend
@@ -120,6 +121,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'gradle'
+          cache-dependency-path: backend/*.gradle*
 
       - name: Grant execute permission for gradlew
         working-directory: backend
@@ -151,6 +153,7 @@ jobs:
           java-version: ${{ env.JAVA_VERSION }}
           distribution: 'temurin'
           cache: 'gradle'
+          cache-dependency-path: backend/*.gradle*
 
       - name: Grant execute permission for gradlew
         working-directory: backend
