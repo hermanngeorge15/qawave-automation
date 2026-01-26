@@ -1,0 +1,64 @@
+{
+  "users": [
+    {
+      "id": "admin-user",
+      "username": "admin@qawave.local",
+      "email": "admin@qawave.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Admin",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "REPLACE_WITH_ADMIN_PASSWORD",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["admin"],
+      "attributes": {
+        "department": ["Engineering"]
+      }
+    },
+    {
+      "id": "tester-user",
+      "username": "tester@qawave.local",
+      "email": "tester@qawave.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "Test",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "REPLACE_WITH_TESTER_PASSWORD",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["tester"],
+      "attributes": {
+        "department": ["QA"]
+      }
+    },
+    {
+      "id": "viewer-user",
+      "username": "viewer@qawave.local",
+      "email": "viewer@qawave.local",
+      "emailVerified": true,
+      "enabled": true,
+      "firstName": "View",
+      "lastName": "User",
+      "credentials": [
+        {
+          "type": "password",
+          "value": "REPLACE_WITH_VIEWER_PASSWORD",
+          "temporary": true
+        }
+      ],
+      "realmRoles": ["viewer"],
+      "attributes": {
+        "department": ["Stakeholder"]
+      }
+    }
+  ]
+}
