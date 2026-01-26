@@ -1,0 +1,83 @@
+# Sealed Secrets Helm Chart Values
+# https://github.com/bitnami-labs/sealed-secrets/tree/main/helm/sealed-secrets
+
+# Controller configuration
+controller:
+  # Create the controller
+  create: true
+
+# Sealed Secrets specific settings
+secretName: "sealed-secrets-key"
+
+# Resources
+resources:
+  requests:
+    cpu: 50m
+    memory: 64Mi
+  limits:
+    cpu: 100m
+    memory: 128Mi
+
+# Security context
+podSecurityContext:
+  fsGroup: 65534
+
+securityContext:
+  readOnlyRootFilesystem: true
+  runAsNonRoot: true
+  runAsUser: 1001
+  capabilities:
+    drop:
+      - ALL
+
+# Service configuration
+service:
+  type: ClusterIP
+  port: 8080
+
+# Metrics (for Prometheus)
+metrics:
+  serviceMonitor:
+    enabled: false  # Enable if using Prometheus Operator
+  dashboards:
+    create: false   # Enable if using Grafana
+
+# Key renewal
+keyrenewperiod: "720h"  # 30 days
+
+# Log level
+args:
+  - --key-renew-period=720h
+  - --log-level=info
+
+# Pod labels
+podLabels:
+  app.kubernetes.io/part-of: qawave
+
+# Tolerations for control plane nodes if needed
+tolerations: []
+
+# Node selector
+nodeSelector: {}
+
+# Affinity rules
+affinity: {}
+
+# Priority class
+priorityClassName: ""
+
+# Service account
+serviceAccount:
+  create: true
+  name: ""
+  annotations: {}
+
+# Network policy
+networkPolicy:
+  enabled: false
+
+# RBAC
+rbac:
+  create: true
+  clusterRole: true
+  clusterRoleBinding: true

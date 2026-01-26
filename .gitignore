@@ -63,3 +63,11 @@ secrets/
 *credential*
 *.pem
 *.key
+
+# BUT allow sealed-secrets infrastructure setup (scripts, docs, config - NOT actual secrets)
+!infrastructure/kubernetes/sealed-secrets/
+!infrastructure/kubernetes/sealed-secrets/README.md
+!infrastructure/kubernetes/sealed-secrets/install.sh
+!infrastructure/kubernetes/sealed-secrets/values.yaml
+!infrastructure/kubernetes/sealed-secrets/examples/
+!infrastructure/kubernetes/sealed-secrets/examples/*.template
