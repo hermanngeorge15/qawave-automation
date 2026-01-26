@@ -1,0 +1,84 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-local-path-provisioner
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: test-env/gitops/platform/local-path-provisioner
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-prometheus
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: test-env/gitops/platform/prometheus
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: platform-sealed-secrets
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: test-env/gitops/platform/sealed-secrets
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: env-staging
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: test-env/gitops/envs/staging
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: argocd
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true

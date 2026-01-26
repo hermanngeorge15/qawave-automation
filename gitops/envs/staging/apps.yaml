@@ -1,0 +1,63 @@
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: staging-postgresql
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: test-env/gitops/envs/staging/postgresql
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: staging-redis
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: test-env/gitops/envs/staging/redis
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+---
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: staging-kafka
+  namespace: argocd
+spec:
+  project: default
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: test-env/gitops/envs/staging/kafka
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: staging
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
