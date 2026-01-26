@@ -3,7 +3,33 @@ import type { Scenario, PaginatedResponse } from './types'
 
 const BASE_PATH = '/api/qa/scenarios'
 
+export interface ScenariosListParams {
+  page?: number | undefined
+  size?: number | undefined
+  packageId?: string | undefined
+  status?: string | undefined
+  search?: string | undefined
+}
+
 export const scenariosApi = {
+  /**
+   * List all scenarios with optional filters
+   */
+  list(params: ScenariosListParams = {}, signal?: AbortSignal): Promise<PaginatedResponse<Scenario>> {
+    const searchParams = new URLSearchParams()
+    if (params.page !== undefined) searchParams.set('page', String(params.page))
+    if (params.size !== undefined) searchParams.set('size', String(params.size))
+    if (params.packageId) searchParams.set('packageId', params.packageId)
+    if (params.status) searchParams.set('status', params.status)
+    if (params.search) searchParams.set('search', params.search)
+
+    const queryString = searchParams.toString()
+    return apiClient.get<PaginatedResponse<Scenario>>(
+      `${BASE_PATH}${queryString ? `?${queryString}` : ''}`,
+      { signal }
+    )
+  },
+
   /**
    * List scenarios for a package
    */
