@@ -12,6 +12,7 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppScenariosRouteImport } from './routes/_app/scenarios'
 import { Route as AppPackagesRouteImport } from './routes/_app/packages'
 import { Route as AppRunsRunIdRouteImport } from './routes/_app/runs.$runId'
 import { Route as AppPackagesNewRouteImport } from './routes/_app/packages.new'
@@ -29,6 +30,11 @@ const AppIndexRoute = AppIndexRouteImport.update({
 const AppSettingsRoute = AppSettingsRouteImport.update({
   id: '/settings',
   path: '/settings',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppScenariosRoute = AppScenariosRouteImport.update({
+  id: '/scenarios',
+  path: '/scenarios',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPackagesRoute = AppPackagesRouteImport.update({
@@ -55,6 +61,7 @@ const AppPackagesPackageIdRoute = AppPackagesPackageIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/packages': typeof AppPackagesRouteWithChildren
+  '/scenarios': typeof AppScenariosRoute
   '/settings': typeof AppSettingsRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/packages/new': typeof AppPackagesNewRoute
@@ -62,6 +69,7 @@ export interface FileRoutesByFullPath {
 }
 export interface FileRoutesByTo {
   '/packages': typeof AppPackagesRouteWithChildren
+  '/scenarios': typeof AppScenariosRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
@@ -72,6 +80,7 @@ export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_app/packages': typeof AppPackagesRouteWithChildren
+  '/_app/scenarios': typeof AppScenariosRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/packages/$packageId': typeof AppPackagesPackageIdRoute
@@ -83,6 +92,7 @@ export interface FileRouteTypes {
   fullPaths:
     | '/'
     | '/packages'
+    | '/scenarios'
     | '/settings'
     | '/packages/$packageId'
     | '/packages/new'
@@ -90,6 +100,7 @@ export interface FileRouteTypes {
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/packages'
+    | '/scenarios'
     | '/settings'
     | '/'
     | '/packages/$packageId'
@@ -99,6 +110,7 @@ export interface FileRouteTypes {
     | '__root__'
     | '/_app'
     | '/_app/packages'
+    | '/_app/scenarios'
     | '/_app/settings'
     | '/_app/'
     | '/_app/packages/$packageId'
@@ -131,6 +143,13 @@ declare module '@tanstack/react-router' {
       path: '/settings'
       fullPath: '/settings'
       preLoaderRoute: typeof AppSettingsRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/scenarios': {
+      id: '/_app/scenarios'
+      path: '/scenarios'
+      fullPath: '/scenarios'
+      preLoaderRoute: typeof AppScenariosRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/packages': {
@@ -180,6 +199,7 @@ const AppPackagesRouteWithChildren = AppPackagesRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppPackagesRoute: typeof AppPackagesRouteWithChildren
+  AppScenariosRoute: typeof AppScenariosRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
   AppRunsRunIdRoute: typeof AppRunsRunIdRoute
@@ -187,6 +207,7 @@ interface AppRouteChildren {
 
 const AppRouteChildren: AppRouteChildren = {
   AppPackagesRoute: AppPackagesRouteWithChildren,
+  AppScenariosRoute: AppScenariosRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
   AppRunsRunIdRoute: AppRunsRunIdRoute,
