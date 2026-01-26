@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.3](https://github.com/hermanngeorge15/qawave-automation/compare/backend-v0.1.2...backend-v0.1.3) (2026-01-26)
+
+
+### Features
+
+* **database:** add V016 migration to ensure status constraint consistency ([67f7f5a](https://github.com/hermanngeorge15/qawave-automation/commit/67f7f5aa45af347e1b37922ceecd2fd7279517df)), closes [#127](https://github.com/hermanngeorge15/qawave-automation/issues/127)
+
 ## [0.1.2](https://github.com/hermanngeorge15/qawave-automation/compare/backend-v0.1.1...backend-v0.1.2) (2026-01-26)
 
 
