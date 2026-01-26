@@ -30,40 +30,36 @@ import kotlin.test.assertNotNull
 /**
  * Integration tests for R2DBC repositories.
  *
- * Uses Testcontainers for local development and CI-provided service containers
- * when SPRING_R2DBC_URL environment variable is set (in GitHub Actions).
+ * Uses CI-provided service containers when SPRING_R2DBC_URL environment variable is set (GitHub Actions).
+ * Otherwise uses Testcontainers for local development.
  */
 @DataR2dbcTest
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class R2dbcRepositoryTest {
     companion object {
         // Check if running in CI with service containers
-        private val useTestcontainers = System.getenv("SPRING_R2DBC_URL") == null
+        private val useCiServices = System.getenv("SPRING_R2DBC_URL") != null
 
         @Container
         @JvmStatic
-        val postgresContainer: PostgreSQLContainer<*>? =
-            if (useTestcontainers) {
-                PostgreSQLContainer("postgres:16-alpine")
-                    .withDatabaseName("qawave_test")
-                    .withUsername("test")
-                    .withPassword("test")
-            } else {
-                null
-            }
+        val postgresContainer: PostgreSQLContainer<*> =
+            PostgreSQLContainer("postgres:16-alpine")
+                .withDatabaseName("qawave_test")
+                .withUsername("test")
+                .withPassword("test")
 
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
+            // In CI, SPRING_R2DBC_URL is already set via environment variables
             // Only configure from Testcontainers if not using CI service containers
-            if (useTestcontainers && postgresContainer != null) {
+            if (!useCiServices) {
                 registry.add("spring.r2dbc.url") {
                     "r2dbc:postgresql://${postgresContainer.host}:${postgresContainer.firstMappedPort}/${postgresContainer.databaseName}"
                 }
                 registry.add("spring.r2dbc.username") { postgresContainer.username }
                 registry.add("spring.r2dbc.password") { postgresContainer.password }
             }
-            // When in CI, SPRING_R2DBC_URL is already set via environment variables
         }
     }
 
