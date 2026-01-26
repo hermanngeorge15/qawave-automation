@@ -32,14 +32,15 @@ export function CreatePackageModal({ isOpen, onClose }: CreatePackageModalProps)
   const resetForm = useCallback(() => {
     setFormData(initialFormData)
     setErrors({})
-    createPackage.reset()
-  }, [createPackage])
+  }, [])
 
   // Reset form when modal closes
   useEffect(() => {
     if (!isOpen) {
       resetForm()
+      createPackage.reset()
     }
+    // eslint-disable-next-line react-hooks/exhaustive-deps -- createPackage.reset is stable, but object reference changes
   }, [isOpen, resetForm])
 
   const updateField = (field: keyof FormData, value: string) => {
