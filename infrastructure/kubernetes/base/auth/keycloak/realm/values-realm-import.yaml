@@ -1,0 +1,25 @@
+# Keycloak Values Patch for Realm Import
+# Apply this patch on top of the base values.yaml to enable realm import
+#
+# Usage with Helm:
+#   helm upgrade keycloak bitnami/keycloak \
+#     -n qawave \
+#     -f values.yaml \
+#     -f realm/values-realm-import.yaml
+#
+
+# Extra environment variables for realm import
+extraEnvVars:
+  - name: KEYCLOAK_EXTRA_ARGS
+    value: "--import-realm"
+
+# Mount realm configuration
+extraVolumes:
+  - name: realm-config
+    secret:
+      secretName: keycloak-realm-import
+
+extraVolumeMounts:
+  - name: realm-config
+    mountPath: /opt/bitnami/keycloak/data/import
+    readOnly: true

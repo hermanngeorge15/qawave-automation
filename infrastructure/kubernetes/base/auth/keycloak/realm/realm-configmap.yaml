@@ -1,0 +1,62 @@
+# ConfigMap for Keycloak Realm Import
+# This ConfigMap contains the QAWave realm configuration
+# Mount this as a volume in Keycloak pod for realm import
+#
+# Usage:
+#   kubectl apply -f realm-configmap.yaml
+#   Then update Keycloak deployment to mount this ConfigMap
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-config
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: realm-config
+data:
+  # Realm import flags
+  KEYCLOAK_EXTRA_ARGS: "--import-realm"
+
+  # Note: The actual realm JSON should be mounted from a Secret for production
+  # This ConfigMap is for the import configuration only
+
+  # Import configuration
+  import-config.yaml: |
+    # Keycloak import configuration
+    # Place realm JSON files in /opt/bitnami/keycloak/data/import/
+    #
+    # Supported import strategies:
+    # - IGNORE_EXISTING: Skip if realm exists
+    # - OVERWRITE_EXISTING: Update existing realm
+    # - FAIL: Fail if realm exists
+    #
+    import:
+      strategy: IGNORE_EXISTING
+      dir: /opt/bitnami/keycloak/data/import
+---
+# Secret for realm JSON (production)
+# Create from realm JSON file:
+#   kubectl create secret generic keycloak-realm-import \
+#     --from-file=qawave-realm.json=realm/qawave-realm.json \
+#     -n qawave
+#
+apiVersion: v1
+kind: Secret
+metadata:
+  name: keycloak-realm-import
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: realm-import
+type: Opaque
+stringData:
+  # Note: In production, replace REPLACE_WITH_* placeholders
+  # and use kubeseal to create a SealedSecret
+  qawave-realm.json: |
+    {
+      "realm": "qawave",
+      "enabled": true,
+      "displayName": "QAWave",
+      "note": "Full realm config should be imported from qawave-realm.json"
+    }
