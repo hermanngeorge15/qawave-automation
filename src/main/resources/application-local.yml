@@ -2,7 +2,14 @@ spring:
   r2dbc:
     url: r2dbc:postgresql://localhost:5432/qawave
     username: qawave
-    password: secret
+    password: qawave_dev_password
+
+  flyway:
+    enabled: true
+    url: jdbc:postgresql://localhost:5432/qawave
+    user: qawave
+    password: qawave_dev_password
+    locations: classpath:db/migration
 
   data:
     redis:
@@ -10,7 +17,7 @@ spring:
       port: 6379
 
   kafka:
-    bootstrap-servers: localhost:9092
+    bootstrap-servers: localhost:9094
 
 logging:
   level:

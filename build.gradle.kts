@@ -43,6 +43,7 @@ dependencies {
 
     // Flyway (uses JDBC for migrations)
     implementation("org.flywaydb:flyway-core:10.7.1")
+    implementation("org.flywaydb:flyway-database-postgresql:10.7.1")
 
     // Redis
     implementation("org.springframework.boot:spring-boot-starter-data-redis-reactive")
