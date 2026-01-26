@@ -24,7 +24,7 @@ export function createTestQueryClient() {
 // Wrapper that provides QueryClient
 interface QueryWrapperProps {
   children: ReactNode
-  queryClient?: QueryClient
+  queryClient?: QueryClient | undefined
 }
 
 export function QueryWrapper({ children, queryClient }: QueryWrapperProps) {

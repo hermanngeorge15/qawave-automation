@@ -7,7 +7,7 @@ import type { QaPackage } from '@/api/types'
 // Mock TanStack Router Link
 vi.mock('@tanstack/react-router', () => ({
   Link: ({ children, to, params }: { children: React.ReactNode; to: string; params: Record<string, string> }) => (
-    <a href={to.replace('$packageId', params.packageId)} data-testid="link">
+    <a href={to.replace('$packageId', params.packageId ?? '')} data-testid="link">
       {children}
     </a>
   ),
