@@ -40,10 +40,10 @@ WHERE qa_package_id IS NOT NULL;
 CREATE INDEX idx_test_step_results_run_passed ON test_step_results(run_id, passed)
 WHERE passed IS NOT NULL;
 
--- Composite index for test_step_results with error_message
+-- Composite index for test_step_results with failure_reason
 -- Used by: findWithErrorsByRunId
 CREATE INDEX idx_test_step_results_run_errors ON test_step_results(run_id)
-WHERE error_message IS NOT NULL;
+WHERE failure_reason IS NOT NULL;
 
 -- ============================================================================
 -- PART 3: Additional performance indexes based on common access patterns
