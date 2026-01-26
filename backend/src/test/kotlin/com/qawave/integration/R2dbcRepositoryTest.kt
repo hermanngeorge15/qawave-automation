@@ -28,15 +28,21 @@ import kotlin.test.assertEquals
 import kotlin.test.assertNotNull
 
 /**
- * Integration tests for R2DBC repositories using Testcontainers.
+ * Integration tests for R2DBC repositories.
+ *
+ * Uses CI-provided service containers when SPRING_R2DBC_URL environment variable is set (GitHub Actions).
+ * Otherwise uses Testcontainers for local development.
  */
 @DataR2dbcTest
-@Testcontainers
+@Testcontainers(disabledWithoutDocker = true)
 class R2dbcRepositoryTest {
     companion object {
+        // Check if running in CI with service containers
+        private val useCiServices = System.getenv("SPRING_R2DBC_URL") != null
+
         @Container
         @JvmStatic
-        val postgresContainer =
+        val postgresContainer: PostgreSQLContainer<*> =
             PostgreSQLContainer("postgres:16-alpine")
                 .withDatabaseName("qawave_test")
                 .withUsername("test")
@@ -45,11 +51,15 @@ class R2dbcRepositoryTest {
         @DynamicPropertySource
         @JvmStatic
         fun configureProperties(registry: DynamicPropertyRegistry) {
-            registry.add("spring.r2dbc.url") {
-                "r2dbc:postgresql://${postgresContainer.host}:${postgresContainer.firstMappedPort}/${postgresContainer.databaseName}"
+            // In CI, SPRING_R2DBC_URL is already set via environment variables
+            // Only configure from Testcontainers if not using CI service containers
+            if (!useCiServices) {
+                registry.add("spring.r2dbc.url") {
+                    "r2dbc:postgresql://${postgresContainer.host}:${postgresContainer.firstMappedPort}/${postgresContainer.databaseName}"
+                }
+                registry.add("spring.r2dbc.username") { postgresContainer.username }
+                registry.add("spring.r2dbc.password") { postgresContainer.password }
             }
-            registry.add("spring.r2dbc.username") { postgresContainer.username }
-            registry.add("spring.r2dbc.password") { postgresContainer.password }
         }
     }
 
@@ -72,10 +82,11 @@ class R2dbcRepositoryTest {
     fun setup() =
         runTest {
             // Create tables for testing (matching actual entity structure)
+            // Using gen_random_uuid() for auto-generated UUIDs (available in PostgreSQL 13+)
             databaseClient.sql(
                 """
             CREATE TABLE IF NOT EXISTS qa_packages (
-                id UUID PRIMARY KEY,
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 name VARCHAR(255) NOT NULL,
                 description TEXT,
                 spec_url VARCHAR(2048),
@@ -99,7 +110,7 @@ class R2dbcRepositoryTest {
             databaseClient.sql(
                 """
             CREATE TABLE IF NOT EXISTS test_scenarios (
-                id UUID PRIMARY KEY,
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 suite_id UUID,
                 qa_package_id UUID,
                 name VARCHAR(255) NOT NULL,
@@ -117,7 +128,7 @@ class R2dbcRepositoryTest {
             databaseClient.sql(
                 """
             CREATE TABLE IF NOT EXISTS test_runs (
-                id UUID PRIMARY KEY,
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 scenario_id UUID NOT NULL,
                 qa_package_id UUID,
                 triggered_by VARCHAR(255) NOT NULL,
@@ -135,7 +146,7 @@ class R2dbcRepositoryTest {
             databaseClient.sql(
                 """
             CREATE TABLE IF NOT EXISTS test_step_results (
-                id UUID PRIMARY KEY,
+                id UUID PRIMARY KEY DEFAULT gen_random_uuid(),
                 run_id UUID NOT NULL,
                 step_index INT NOT NULL,
                 step_name VARCHAR(255) NOT NULL,
@@ -240,7 +251,7 @@ class R2dbcRepositoryTest {
             status: String = "PENDING",
             specHash: String? = null,
         ) = QaPackageEntity(
-            id = UUID.randomUUID(),
+            id = null, // Let the database generate the ID (INSERT instead of UPDATE)
             name = name,
             description = "Test description",
             specUrl = "https://api.example.com/openapi.yaml",
@@ -301,7 +312,7 @@ class R2dbcRepositoryTest {
             qaPackageId: UUID = UUID.randomUUID(),
             status: String = "PENDING",
         ) = TestScenarioEntity(
-            id = UUID.randomUUID(),
+            id = null, // Let the database generate the ID (INSERT instead of UPDATE)
             qaPackageId = qaPackageId,
             suiteId = null,
             name = "Test Scenario",
@@ -340,12 +351,12 @@ class R2dbcRepositoryTest {
                 val newRun = createTestRunEntity(scenarioId = scenarioId, createdAt = Instant.now())
 
                 testRunRepository.save(oldRun)
-                testRunRepository.save(newRun)
+                val savedNewRun = testRunRepository.save(newRun)
 
                 val latest = testRunRepository.findLatestByScenarioId(scenarioId)
 
                 assertNotNull(latest)
-                assertEquals(newRun.id, latest.id)
+                assertEquals(savedNewRun.id, latest.id)
             }
 
         @Test
@@ -365,7 +376,7 @@ class R2dbcRepositoryTest {
             status: String = "PENDING",
             createdAt: Instant = Instant.now(),
         ) = TestRunEntity(
-            id = UUID.randomUUID(),
+            id = null, // Let the database generate the ID (INSERT instead of UPDATE)
             scenarioId = scenarioId,
             qaPackageId = qaPackageId,
             triggeredBy = "test-user",
@@ -454,7 +465,7 @@ class R2dbcRepositoryTest {
             passed: Boolean = true,
             durationMs: Long = 100,
         ) = TestStepResultEntity(
-            id = UUID.randomUUID(),
+            id = null, // Let the database generate the ID (INSERT instead of UPDATE)
             runId = runId,
             stepIndex = stepIndex,
             stepName = stepName,

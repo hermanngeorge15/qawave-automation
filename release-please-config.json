@@ -3,6 +3,7 @@
   "bump-minor-pre-major": true,
   "bump-patch-for-minor-pre-major": true,
   "include-v-in-tag": true,
+  "include-component-in-tag": true,
   "changelog-sections": [
     { "type": "feat", "section": "Features" },
     { "type": "fix", "section": "Bug Fixes" },
@@ -17,11 +18,14 @@
     { "type": "ci", "section": "Continuous Integration", "hidden": true }
   ],
   "packages": {
-    ".": {
+    "backend": {
       "release-type": "simple",
-      "extra-files": [
-        "gradle.properties"
-      ]
+      "component": "backend",
+      "extra-files": ["gradle.properties"]
+    },
+    "frontend": {
+      "release-type": "node",
+      "component": "frontend"
     }
   }
 }
