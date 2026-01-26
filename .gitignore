@@ -60,7 +60,6 @@ kubeconfig
 # Secrets (never commit)
 secrets/
 *secret*
-*credential*
 *.pem
 *.key
 
@@ -71,3 +70,7 @@ secrets/
 !infrastructure/kubernetes/sealed-secrets/values.yaml
 !infrastructure/kubernetes/sealed-secrets/examples/
 !infrastructure/kubernetes/sealed-secrets/examples/*.template
+
+# ArgoCD credentials (keep .example, ignore actual)
+infrastructure/argocd/repo-credentials/*.yaml
+!infrastructure/argocd/repo-credentials/*.yaml.example

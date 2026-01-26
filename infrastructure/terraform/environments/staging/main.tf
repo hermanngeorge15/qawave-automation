@@ -1,11 +1,17 @@
 # QAWave Staging Infrastructure
 # Hetzner Cloud + K0s Kubernetes Cluster
 #
-# Cost estimate: ~17/month
-#   - CX11 (Control Plane): ~4/month
-#   - CX21 (Worker): ~6/month
-#   - LB11 (Load Balancer): ~6/month
-#   - Volumes: ~1/month
+# Architecture:
+#   - 1 Control Plane (cx23) - runs k0s controller + worker
+#   - 2 Workers (cx23) - general purpose
+#   - No external load balancer (use NodePort)
+#   - No separate volumes (use internal 40GB disk)
+#
+# Automated setup:
+#   - K0s cluster with kuberouter CNI
+#   - Workers auto-join via internal SSH
+#   - ingress-nginx on NodePort 30080/30443
+#   - ArgoCD installed and exposed
 
 terraform {
   required_version = ">= 1.6.0"
@@ -19,17 +25,10 @@ terraform {
       source  = "hashicorp/tls"
       version = "~> 4.0"
     }
-    local = {
-      source  = "hashicorp/local"
-      version = "~> 2.4"
-    }
   }
 
-  backend "s3" {
-    bucket = "qawave-terraform-state"
-    key    = "staging/terraform.tfstate"
-    region = "eu-central-1"
-    # Use any S3-compatible backend (e.g., Backblaze B2, Wasabi)
+  backend "local" {
+    path = "terraform.tfstate"
   }
 }
 
@@ -42,13 +41,8 @@ provider "hcloud" {
 # =============================================================================
 
 locals {
-  environment = "staging"
-  # Staging uses smaller instances than production
-  control_plane_type = "cx11" # 1 vCPU, 2GB RAM
-  worker_type        = "cx21" # 2 vCPU, 4GB RAM
-  worker_count       = 1      # Single worker for staging
-
-  # Network range different from production (10.0.x.x)
+  environment   = "staging"
+  server_type   = "cx23"
   network_range = "10.1.0.0/16"
   subnet_range  = "10.1.1.0/24"
 
@@ -60,7 +54,7 @@ locals {
 }
 
 # =============================================================================
-# SSH Key
+# SSH Keys
 # =============================================================================
 
 resource "hcloud_ssh_key" "main" {
@@ -68,15 +62,18 @@ resource "hcloud_ssh_key" "main" {
   public_key = file(var.ssh_public_key_path)
 }
 
+resource "tls_private_key" "internal" {
+  algorithm = "ED25519"
+}
+
 # =============================================================================
-# Network (Isolated from production)
+# Network
 # =============================================================================
 
 resource "hcloud_network" "main" {
   name     = "qawave-${local.environment}"
   ip_range = local.network_range
-
-  labels = local.common_labels
+  labels   = local.common_labels
 }
 
 resource "hcloud_network_subnet" "nodes" {
@@ -91,8 +88,7 @@ resource "hcloud_network_subnet" "nodes" {
 # =============================================================================
 
 resource "hcloud_firewall" "k8s" {
-  name = "qawave-k8s-${local.environment}"
-
+  name   = "qawave-k8s-${local.environment}"
   labels = local.common_labels
 
   # SSH
@@ -111,7 +107,7 @@ resource "hcloud_firewall" "k8s" {
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 
-  # HTTP
+  # HTTP/HTTPS
   rule {
     direction  = "in"
     protocol   = "tcp"
@@ -119,7 +115,6 @@ resource "hcloud_firewall" "k8s" {
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 
-  # HTTPS
   rule {
     direction  = "in"
     protocol   = "tcp"
@@ -127,7 +122,7 @@ resource "hcloud_firewall" "k8s" {
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 
-  # NodePort range (for ingress)
+  # NodePort range
   rule {
     direction  = "in"
     protocol   = "tcp"
@@ -135,29 +130,56 @@ resource "hcloud_firewall" "k8s" {
     source_ips = ["0.0.0.0/0", "::/0"]
   }
 
-  # Internal cluster communication
+  # Private network (intra-cluster)
   rule {
     direction  = "in"
     protocol   = "tcp"
-    port       = "any"
-    source_ips = [local.network_range]
+    port       = "1-65535"
+    source_ips = [local.subnet_range]
   }
 
   rule {
     direction  = "in"
     protocol   = "udp"
-    port       = "any"
-    source_ips = [local.network_range]
+    port       = "1-65535"
+    source_ips = [local.subnet_range]
+  }
+
+  rule {
+    direction  = "in"
+    protocol   = "icmp"
+    source_ips = [local.subnet_range]
+  }
+
+  # Pod and Service CIDR (for kube-router/overlay traffic)
+  rule {
+    direction  = "in"
+    protocol   = "tcp"
+    port       = "1-65535"
+    source_ips = ["10.244.0.0/16", "10.96.0.0/12"]
+  }
+
+  rule {
+    direction  = "in"
+    protocol   = "udp"
+    port       = "1-65535"
+    source_ips = ["10.244.0.0/16", "10.96.0.0/12"]
+  }
+
+  rule {
+    direction  = "in"
+    protocol   = "icmp"
+    source_ips = ["10.244.0.0/16", "10.96.0.0/12"]
   }
 }
 
 # =============================================================================
-# Control Plane Server
+# Control Plane
 # =============================================================================
 
 resource "hcloud_server" "control_plane" {
   name         = "qawave-cp-${local.environment}"
-  server_type  = local.control_plane_type
+  server_type  = local.server_type
   image        = "ubuntu-22.04"
   location     = var.location
   ssh_keys     = [hcloud_ssh_key.main.id]
@@ -168,36 +190,143 @@ resource "hcloud_server" "control_plane" {
     ip         = "10.1.1.10"
   }
 
-  labels = merge(local.common_labels, {
-    role = "control-plane"
-  })
+  labels = merge(local.common_labels, { role = "control-plane" })
 
-  user_data = <<-EOF
-    #!/bin/bash
-    set -e
+  user_data = <<EOF
+#!/bin/bash
+set -e
+exec > /var/log/user-data.log 2>&1
+echo "=== Control Plane Setup Started ==="
 
-    # Update system
-    apt-get update && apt-get upgrade -y
+# Internal SSH key
+mkdir -p /root/.ssh
+cat > /root/.ssh/id_ed25519 << 'SSHKEY'
+${tls_private_key.internal.private_key_openssh}
+SSHKEY
+chmod 600 /root/.ssh/id_ed25519
+echo '${tls_private_key.internal.public_key_openssh}' >> /root/.ssh/authorized_keys
 
-    # Install k0s
-    curl -sSLf https://get.k0s.sh | sudo sh
+# Kernel modules for Kubernetes
+cat > /etc/modules-load.d/k8s.conf << 'MODULES'
+overlay
+br_netfilter
+MODULES
+modprobe overlay
+modprobe br_netfilter
 
-    # Install k0s as controller (single node for staging)
-    k0s install controller --single
-    k0s start
+# Sysctl settings
+cat > /etc/sysctl.d/99-kubernetes.conf << 'SYSCTL'
+net.ipv4.ip_forward = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+SYSCTL
+sysctl --system
 
-    # Wait for k0s to be ready
-    sleep 30
+# Disable swap
+swapoff -a
+sed -i '/ swap / s/^/#/' /etc/fstab
 
-    # Install kubectl
-    curl -LO "https://dl.k8s.io/release/$(curl -L -s https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
-    chmod +x kubectl
-    mv kubectl /usr/local/bin/
+# System setup
+apt-get update && apt-get install -y curl jq
 
-    # Set up kubeconfig
-    mkdir -p /root/.kube
-    k0s kubeconfig admin > /root/.kube/config
-  EOF
+# Install k0s
+curl -sSLf https://get.k0s.sh | sh
+
+# Install kubectl
+curl -LO "https://dl.k8s.io/release/$(curl -Ls https://dl.k8s.io/release/stable.txt)/bin/linux/amd64/kubectl"
+chmod +x kubectl && mv kubectl /usr/local/bin/
+
+# Install Helm
+curl -fsSL https://raw.githubusercontent.com/helm/helm/main/scripts/get-helm-3 | bash
+
+# Get public IP
+PUBLIC_IP=$(curl -s http://169.254.169.254/hetzner/v1/metadata/public-ipv4)
+
+# K0s config with node-ip set to private address
+mkdir -p /etc/k0s
+cat > /etc/k0s/k0s.yaml << K0SCONF
+apiVersion: k0s.k0sproject.io/v1beta1
+kind: ClusterConfig
+metadata:
+  name: qawave-staging
+spec:
+  api:
+    address: 10.1.1.10
+    sans:
+      - 10.1.1.10
+      - $PUBLIC_IP
+      - 127.0.0.1
+  network:
+    provider: kuberouter
+    podCIDR: 10.244.0.0/16
+    serviceCIDR: 10.96.0.0/12
+K0SCONF
+
+# Start k0s with kubelet using private IP
+k0s install controller --enable-worker -c /etc/k0s/k0s.yaml --kubelet-extra-args="--node-ip=10.1.1.10"
+k0s start
+
+# Wait for k0s
+echo "Waiting for k0s to start..."
+for i in {1..30}; do
+  if k0s status 2>/dev/null | grep -q "running"; then
+    echo "k0s is running"
+    break
+  fi
+  sleep 10
+done
+
+# Setup kubeconfig
+sleep 30
+mkdir -p /root/.kube
+k0s kubeconfig admin > /root/.kube/config
+chmod 600 /root/.kube/config
+export KUBECONFIG=/root/.kube/config
+
+# Wait for cluster ready
+echo "Waiting for cluster to be ready..."
+for i in {1..30}; do
+  if kubectl get nodes 2>/dev/null | grep -q "Ready"; then
+    echo "Cluster is ready"
+    break
+  fi
+  sleep 10
+done
+
+# Generate worker token
+k0s token create --role=worker > /root/worker-token.txt
+chmod 644 /root/worker-token.txt
+
+# Wait for CoreDNS
+echo "Waiting for CoreDNS..."
+kubectl wait --for=condition=available --timeout=300s deployment/coredns -n kube-system || true
+sleep 30
+
+# Install ingress-nginx
+echo "Installing ingress-nginx..."
+kubectl apply -f https://raw.githubusercontent.com/kubernetes/ingress-nginx/controller-v1.9.4/deploy/static/provider/baremetal/deploy.yaml
+sleep 30
+
+# Install ArgoCD
+echo "Installing ArgoCD..."
+kubectl create namespace argocd || true
+kubectl apply -n argocd -f https://raw.githubusercontent.com/argoproj/argo-cd/stable/manifests/install.yaml
+
+# Wait for ArgoCD
+echo "Waiting for ArgoCD..."
+sleep 60
+kubectl wait --for=condition=available --timeout=300s deployment/argocd-server -n argocd || true
+
+# Expose ArgoCD via NodePort
+kubectl patch svc argocd-server -n argocd -p '{"spec": {"type": "NodePort", "ports": [{"name": "http", "port": 80, "targetPort": 8080, "nodePort": 30080}, {"name": "https", "port": 443, "targetPort": 8080, "nodePort": 30443}]}}'
+
+# Get ArgoCD password
+sleep 10
+kubectl -n argocd get secret argocd-initial-admin-secret -o jsonpath="{.data.password}" 2>/dev/null | base64 -d > /root/argocd-password.txt || echo "password-not-ready" > /root/argocd-password.txt
+
+touch /root/setup-complete
+echo "=== Control Plane Setup Complete ==="
+EOF
 
   lifecycle {
     ignore_changes = [user_data]
@@ -205,12 +334,12 @@ resource "hcloud_server" "control_plane" {
 }
 
 # =============================================================================
-# Worker Node (Single worker for staging)
+# Workers
 # =============================================================================
 
-resource "hcloud_server" "worker" {
-  name         = "qawave-worker-${local.environment}"
-  server_type  = local.worker_type
+resource "hcloud_server" "worker_1" {
+  name         = "qawave-worker-1-${local.environment}"
+  server_type  = local.server_type
   image        = "ubuntu-22.04"
   location     = var.location
   ssh_keys     = [hcloud_ssh_key.main.id]
@@ -221,90 +350,153 @@ resource "hcloud_server" "worker" {
     ip         = "10.1.1.11"
   }
 
-  labels = merge(local.common_labels, {
-    role = "worker"
-  })
+  labels = merge(local.common_labels, { role = "worker" })
+
+  user_data = <<EOF
+#!/bin/bash
+set -e
+exec > /var/log/user-data.log 2>&1
+echo "=== Worker 1 Setup Started ==="
+
+# Internal SSH key
+mkdir -p /root/.ssh
+cat > /root/.ssh/id_ed25519 << 'SSHKEY'
+${tls_private_key.internal.private_key_openssh}
+SSHKEY
+chmod 600 /root/.ssh/id_ed25519
+echo '${tls_private_key.internal.public_key_openssh}' >> /root/.ssh/authorized_keys
+
+# Kernel modules for Kubernetes
+cat > /etc/modules-load.d/k8s.conf << 'MODULES'
+overlay
+br_netfilter
+MODULES
+modprobe overlay
+modprobe br_netfilter
+
+# Sysctl settings
+cat > /etc/sysctl.d/99-kubernetes.conf << 'SYSCTL'
+net.ipv4.ip_forward = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+SYSCTL
+sysctl --system
+
+# Disable swap
+swapoff -a
+sed -i '/ swap / s/^/#/' /etc/fstab
+
+# System setup
+apt-get update && apt-get install -y curl
+
+# Install k0s
+curl -sSLf https://get.k0s.sh | sh
+
+# Wait for control plane token
+echo "Waiting for control plane..."
+for i in {1..60}; do
+  if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@10.1.1.10 "test -f /root/worker-token.txt" 2>/dev/null; then
+    echo "Control plane ready!"
+    break
+  fi
+  echo "Waiting... $i/60"
+  sleep 30
+done
+
+# Get token and join with kubelet using private IP
+scp -o StrictHostKeyChecking=no root@10.1.1.10:/root/worker-token.txt /root/worker-token.txt
+k0s install worker --token-file /root/worker-token.txt --kubelet-extra-args="--node-ip=10.1.1.11"
+k0s start
+
+touch /root/setup-complete
+echo "=== Worker 1 Setup Complete ==="
+EOF
+
+  lifecycle {
+    ignore_changes = [user_data]
+  }
 
   depends_on = [hcloud_server.control_plane]
 }
 
-# =============================================================================
-# Load Balancer
-# =============================================================================
+resource "hcloud_server" "worker_2" {
+  name         = "qawave-worker-2-${local.environment}"
+  server_type  = local.server_type
+  image        = "ubuntu-22.04"
+  location     = var.location
+  ssh_keys     = [hcloud_ssh_key.main.id]
+  firewall_ids = [hcloud_firewall.k8s.id]
 
-resource "hcloud_load_balancer" "main" {
-  name               = "qawave-lb-${local.environment}"
-  load_balancer_type = "lb11"
-  location           = var.location
-
-  labels = local.common_labels
-}
-
-resource "hcloud_load_balancer_network" "main" {
-  load_balancer_id = hcloud_load_balancer.main.id
-  network_id       = hcloud_network.main.id
-  ip               = "10.1.1.100"
-}
-
-resource "hcloud_load_balancer_target" "worker" {
-  type             = "server"
-  load_balancer_id = hcloud_load_balancer.main.id
-  server_id        = hcloud_server.worker.id
-  use_private_ip   = true
-}
-
-resource "hcloud_load_balancer_service" "http" {
-  load_balancer_id = hcloud_load_balancer.main.id
-  protocol         = "tcp"
-  listen_port      = 80
-  destination_port = 30080
-
-  health_check {
-    protocol = "tcp"
-    port     = 30080
-    interval = 10
-    timeout  = 5
-    retries  = 3
+  network {
+    network_id = hcloud_network.main.id
+    ip         = "10.1.1.12"
   }
-}
 
-resource "hcloud_load_balancer_service" "https" {
-  load_balancer_id = hcloud_load_balancer.main.id
-  protocol         = "tcp"
-  listen_port      = 443
-  destination_port = 30443
+  labels = merge(local.common_labels, { role = "worker" })
 
-  health_check {
-    protocol = "tcp"
-    port     = 30443
-    interval = 10
-    timeout  = 5
-    retries  = 3
+  user_data = <<EOF
+#!/bin/bash
+set -e
+exec > /var/log/user-data.log 2>&1
+echo "=== Worker 2 Setup Started ==="
+
+# Internal SSH key
+mkdir -p /root/.ssh
+cat > /root/.ssh/id_ed25519 << 'SSHKEY'
+${tls_private_key.internal.private_key_openssh}
+SSHKEY
+chmod 600 /root/.ssh/id_ed25519
+echo '${tls_private_key.internal.public_key_openssh}' >> /root/.ssh/authorized_keys
+
+# Kernel modules for Kubernetes
+cat > /etc/modules-load.d/k8s.conf << 'MODULES'
+overlay
+br_netfilter
+MODULES
+modprobe overlay
+modprobe br_netfilter
+
+# Sysctl settings
+cat > /etc/sysctl.d/99-kubernetes.conf << 'SYSCTL'
+net.ipv4.ip_forward = 1
+net.bridge.bridge-nf-call-iptables = 1
+net.bridge.bridge-nf-call-ip6tables = 1
+SYSCTL
+sysctl --system
+
+# Disable swap
+swapoff -a
+sed -i '/ swap / s/^/#/' /etc/fstab
+
+# System setup
+apt-get update && apt-get install -y curl
+
+# Install k0s
+curl -sSLf https://get.k0s.sh | sh
+
+# Wait for control plane token
+echo "Waiting for control plane..."
+for i in {1..60}; do
+  if ssh -o StrictHostKeyChecking=no -o ConnectTimeout=5 root@10.1.1.10 "test -f /root/worker-token.txt" 2>/dev/null; then
+    echo "Control plane ready!"
+    break
+  fi
+  echo "Waiting... $i/60"
+  sleep 30
+done
+
+# Get token and join with kubelet using private IP
+scp -o StrictHostKeyChecking=no root@10.1.1.10:/root/worker-token.txt /root/worker-token.txt
+k0s install worker --token-file /root/worker-token.txt --kubelet-extra-args="--node-ip=10.1.1.12"
+k0s start
+
+touch /root/setup-complete
+echo "=== Worker 2 Setup Complete ==="
+EOF
+
+  lifecycle {
+    ignore_changes = [user_data]
   }
-}
 
-# =============================================================================
-# Volumes for Data Services (Smaller than production)
-# =============================================================================
-
-resource "hcloud_volume" "postgres" {
-  name     = "qawave-postgres-${local.environment}"
-  size     = 20 # Smaller than prod (50GB)
-  location = var.location
-  format   = "ext4"
-
-  labels = merge(local.common_labels, {
-    service = "postgresql"
-  })
-}
-
-resource "hcloud_volume" "redis" {
-  name     = "qawave-redis-${local.environment}"
-  size     = 10
-  location = var.location
-  format   = "ext4"
-
-  labels = merge(local.common_labels, {
-    service = "redis"
-  })
+  depends_on = [hcloud_server.control_plane]
 }

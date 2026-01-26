@@ -6,7 +6,7 @@ metadata:
 spec:
   description: QAWave Application Project
   sourceRepos:
-    - 'https://github.com/your-org/qawave.git'
+    - 'https://github.com/hermanngeorge15/qawave-automation.git'
   destinations:
     - namespace: qawave
       server: https://kubernetes.default.svc
@@ -39,7 +39,7 @@ metadata:
 spec:
   project: qawave
   source:
-    repoURL: https://github.com/your-org/qawave.git
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
     targetRevision: main
     path: infrastructure/kubernetes/overlays/production
   destination:
@@ -74,8 +74,8 @@ metadata:
 spec:
   project: qawave
   source:
-    repoURL: https://github.com/your-org/qawave.git
-    targetRevision: main
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: develop  # Staging watches develop branch
     path: infrastructure/kubernetes/overlays/staging
   destination:
     server: https://kubernetes.default.svc
@@ -99,12 +99,12 @@ metadata:
 spec:
   project: qawave
   source:
-    repoURL: https://github.com/your-org/qawave.git
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
     targetRevision: main
     path: infrastructure/kubernetes/overlays/production
     kustomize:
       images:
-        - ghcr.io/your-org/qawave/frontend
+        - ghcr.io/hermanngeorge15/qawave-automation/frontend
   destination:
     server: https://kubernetes.default.svc
     namespace: qawave
@@ -126,7 +126,7 @@ metadata:
 spec:
   project: qawave
   source:
-    repoURL: https://github.com/your-org/qawave.git
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
     targetRevision: main
     path: infrastructure/kubernetes/base/data-services
   destination:
