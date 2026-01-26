@@ -5,9 +5,14 @@ k0s/k0sctl.yaml
 kubeconfig*.yaml
 *.kubeconfig
 
-# Secrets
+# Secrets - protect actual secret files
 *-secrets.yaml
-sealed-secrets/
+
+# Sealed Secrets - ignore generated/sensitive files, but allow setup scripts
+sealed-secrets/public-key.pem
+sealed-secrets/*.yaml
+!sealed-secrets/values.yaml
+!sealed-secrets/examples/*.template
 
 # Local testing
 .kube/
