@@ -1,0 +1,32 @@
+# Kustomization for Keycloak
+# This file is used by ArgoCD to manage Keycloak deployment
+#
+# Note: Keycloak is deployed using Helm, so this kustomization
+# primarily manages additional resources like secrets and configs
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: qawave
+
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/part-of: qawave
+    includeSelectors: false
+
+resources:
+  # Add secrets.yaml here once created (or sealed-secrets.yaml)
+  # - secrets.yaml
+  - init-db-configmap.yaml
+
+# Common labels for all resources
+commonLabels:
+  environment: production
+
+# Patches for environment-specific configuration
+# patches:
+#   - path: patches/production-values.yaml
+#     target:
+#       kind: HelmRelease
+#       name: keycloak

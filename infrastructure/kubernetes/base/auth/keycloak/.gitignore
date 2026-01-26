@@ -1,0 +1,15 @@
+# Ignore actual secrets (use secrets.yaml.example as template)
+# DO NOT ignore secrets.yaml.example - it's the template
+/secrets.yaml
+!/secrets.yaml.example
+
+# Ignore sealed secrets if stored locally
+/sealed-secrets.yaml
+
+# Ignore local state files
+*.tfstate
+*.tfstate.backup
+
+# Ignore editor backups
+*~
+*.swp
