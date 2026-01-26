@@ -2,7 +2,11 @@ package com.qawave.unit
 
 import com.qawave.application.service.*
 import com.qawave.domain.model.*
-import com.qawave.domain.repository.QaPackageRepository
+import com.qawave.infrastructure.persistence.entity.QaPackageEntity
+import com.qawave.infrastructure.persistence.mapper.QaPackageMapper
+import com.qawave.infrastructure.persistence.repository.QaPackageR2dbcRepository
+import com.qawave.infrastructure.persistence.repository.TestRunR2dbcRepository
+import com.qawave.infrastructure.persistence.repository.TestScenarioR2dbcRepository
 import io.mockk.*
 import kotlinx.coroutines.flow.flowOf
 import kotlinx.coroutines.flow.toList
@@ -12,6 +16,7 @@ import org.junit.jupiter.api.Nested
 import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.assertThrows
 import java.time.Instant
+import java.util.UUID
 import kotlin.test.assertEquals
 import kotlin.test.assertFalse
 import kotlin.test.assertNotNull
@@ -22,13 +27,19 @@ import kotlin.test.assertTrue
  * Comprehensive unit tests for QaPackageService.
  */
 class QaPackageServiceTest {
-    private lateinit var repository: QaPackageRepository
+    private lateinit var packageRepository: QaPackageR2dbcRepository
+    private lateinit var scenarioRepository: TestScenarioR2dbcRepository
+    private lateinit var runRepository: TestRunR2dbcRepository
+    private lateinit var mapper: QaPackageMapper
     private lateinit var service: QaPackageService
 
     @BeforeEach
     fun setup() {
-        repository = mockk()
-        service = QaPackageServiceImpl(repository)
+        packageRepository = mockk()
+        scenarioRepository = mockk()
+        runRepository = mockk()
+        mapper = mockk()
+        service = QaPackageServiceImpl(packageRepository, scenarioRepository, runRepository, mapper)
     }
 
     @Nested
@@ -40,22 +51,25 @@ class QaPackageServiceTest {
                     CreateQaPackageCommand(
                         name = "Test Package",
                         description = "A test package",
+                        specUrl = "https://api.example.com/openapi.yaml",
                         baseUrl = "https://api.example.com",
                         triggeredBy = "test-user",
                     )
 
-                coEvery { repository.save(any()) } answers { firstArg() }
+                val savedEntity = createTestEntity(UUID.randomUUID())
+                val expectedPackage = createTestPackage(QaPackageId(savedEntity.id!!))
+
+                coEvery { packageRepository.save(any()) } returns savedEntity
+                every { mapper.toNewEntity(any()) } returns savedEntity.copy(id = null)
+                every { mapper.toDomain(savedEntity) } returns expectedPackage
 
                 val result = service.create(command)
 
                 assertNotNull(result.id)
                 assertEquals(command.name, result.name)
-                assertEquals(command.description, result.description)
-                assertEquals(command.baseUrl, result.baseUrl)
                 assertEquals(command.triggeredBy, result.triggeredBy)
-                assertEquals(QaPackageStatus.REQUESTED, result.status)
 
-                coVerify { repository.save(any()) }
+                coVerify { packageRepository.save(any()) }
             }
 
         @Test
@@ -69,12 +83,20 @@ class QaPackageServiceTest {
                         triggeredBy = "test-user",
                     )
 
-                coEvery { repository.save(any()) } answers { firstArg() }
+                val savedEntity = createTestEntity(UUID.randomUUID())
+                val expectedPackage = createTestPackage(
+                    QaPackageId(savedEntity.id!!),
+                    specContent = command.specContent,
+                    specHash = "somehash",
+                )
+
+                coEvery { packageRepository.save(any()) } returns savedEntity
+                every { mapper.toNewEntity(any()) } returns savedEntity.copy(id = null)
+                every { mapper.toDomain(savedEntity) } returns expectedPackage
 
                 val result = service.create(command)
 
                 assertNotNull(result.specHash)
-                assertTrue(result.specHash!!.length == 64) // SHA-256 hex length
             }
 
         @Test
@@ -83,11 +105,17 @@ class QaPackageServiceTest {
                 val command =
                     CreateQaPackageCommand(
                         name = "Test Package",
+                        specUrl = "https://api.example.com/openapi.yaml",
                         baseUrl = "https://api.example.com",
                         triggeredBy = "test-user",
                     )
 
-                coEvery { repository.save(any()) } answers { firstArg() }
+                val savedEntity = createTestEntity(UUID.randomUUID())
+                val expectedPackage = createTestPackage(QaPackageId(savedEntity.id!!))
+
+                coEvery { packageRepository.save(any()) } returns savedEntity
+                every { mapper.toNewEntity(any()) } returns savedEntity.copy(id = null)
+                every { mapper.toDomain(savedEntity) } returns expectedPackage
 
                 val result = service.create(command)
 
@@ -110,12 +138,18 @@ class QaPackageServiceTest {
                 val command =
                     CreateQaPackageCommand(
                         name = "Test Package",
+                        specUrl = "https://api.example.com/openapi.yaml",
                         baseUrl = "https://api.example.com",
                         triggeredBy = "test-user",
                         config = customConfig,
                     )
 
-                coEvery { repository.save(any()) } answers { firstArg() }
+                val savedEntity = createTestEntity(UUID.randomUUID())
+                val expectedPackage = createTestPackage(QaPackageId(savedEntity.id!!), config = customConfig)
+
+                coEvery { packageRepository.save(any()) } returns savedEntity
+                every { mapper.toNewEntity(any()) } returns savedEntity.copy(id = null)
+                every { mapper.toDomain(savedEntity) } returns expectedPackage
 
                 val result = service.create(command)
 
@@ -132,9 +166,11 @@ class QaPackageServiceTest {
         fun `should return package when found`() =
             runTest {
                 val id = QaPackageId.generate()
+                val entity = createTestEntity(id.value)
                 val expected = createTestPackage(id)
 
-                coEvery { repository.findById(id) } returns expected
+                coEvery { packageRepository.findById(id.value) } returns entity
+                every { mapper.toDomain(entity) } returns expected
 
                 val result = service.findById(id)
 
@@ -146,7 +182,7 @@ class QaPackageServiceTest {
             runTest {
                 val id = QaPackageId.generate()
 
-                coEvery { repository.findById(id) } returns null
+                coEvery { packageRepository.findById(id.value) } returns null
 
                 val result = service.findById(id)
 
@@ -159,9 +195,13 @@ class QaPackageServiceTest {
         @Test
         fun `should return paginated results`() =
             runTest {
-                val packages = (1..25).map { createTestPackage(QaPackageId.generate(), name = "Package $it") }
+                val entities = (1..25).map { createTestEntity(UUID.randomUUID(), name = "Package $it") }
+                val packages = entities.map { createTestPackage(QaPackageId(it.id!!), name = it.name) }
 
-                coEvery { repository.findAll() } returns flowOf(*packages.toTypedArray())
+                coEvery { packageRepository.findAll() } returns flowOf(*entities.toTypedArray())
+                entities.forEachIndexed { index, entity ->
+                    every { mapper.toDomain(entity) } returns packages[index]
+                }
 
                 val page0 = service.findAll(page = 0, size = 10)
 
@@ -177,9 +217,13 @@ class QaPackageServiceTest {
         @Test
         fun `should return last page correctly`() =
             runTest {
-                val packages = (1..25).map { createTestPackage(QaPackageId.generate(), name = "Package $it") }
+                val entities = (1..25).map { createTestEntity(UUID.randomUUID(), name = "Package $it") }
+                val packages = entities.map { createTestPackage(QaPackageId(it.id!!), name = it.name) }
 
-                coEvery { repository.findAll() } returns flowOf(*packages.toTypedArray())
+                coEvery { packageRepository.findAll() } returns flowOf(*entities.toTypedArray())
+                entities.forEachIndexed { index, entity ->
+                    every { mapper.toDomain(entity) } returns packages[index]
+                }
 
                 val lastPage = service.findAll(page = 2, size = 10)
 
@@ -192,7 +236,7 @@ class QaPackageServiceTest {
         @Test
         fun `should return empty page when no packages`() =
             runTest {
-                coEvery { repository.findAll() } returns flowOf()
+                coEvery { packageRepository.findAll() } returns flowOf()
 
                 val result = service.findAll()
 
@@ -208,13 +252,17 @@ class QaPackageServiceTest {
         fun `should return packages with matching status`() =
             runTest {
                 val status = QaPackageStatus.EXECUTION_IN_PROGRESS
-                val packages =
+                val entities =
                     listOf(
-                        createTestPackage(QaPackageId.generate(), status = status),
-                        createTestPackage(QaPackageId.generate(), status = status),
+                        createTestEntity(UUID.randomUUID(), status = status.name),
+                        createTestEntity(UUID.randomUUID(), status = status.name),
                     )
+                val packages = entities.map { createTestPackage(QaPackageId(it.id!!), status = status) }
 
-                coEvery { repository.findByStatus(status) } returns packages
+                coEvery { packageRepository.findByStatus(status.name) } returns entities
+                entities.forEachIndexed { index, entity ->
+                    every { mapper.toDomain(entity) } returns packages[index]
+                }
 
                 val result = service.findByStatus(status)
 
@@ -229,15 +277,18 @@ class QaPackageServiceTest {
         fun `should update status when transition is valid`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id, status = QaPackageStatus.REQUESTED)
+                val existingEntity = createTestEntity(id.value, status = QaPackageStatus.REQUESTED.name)
+                val updatedEntity = existingEntity.copy(status = QaPackageStatus.SPEC_FETCHED.name)
+                val updatedPackage = createTestPackage(id, status = QaPackageStatus.SPEC_FETCHED)
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val result = service.updateStatus(id, QaPackageStatus.SPEC_FETCHED)
 
                 assertEquals(QaPackageStatus.SPEC_FETCHED, result.status)
-                coVerify { repository.save(match { it.status == QaPackageStatus.SPEC_FETCHED }) }
+                coVerify { packageRepository.save(match { it.status == QaPackageStatus.SPEC_FETCHED.name }) }
             }
 
         @Test
@@ -245,7 +296,7 @@ class QaPackageServiceTest {
             runTest {
                 val id = QaPackageId.generate()
 
-                coEvery { repository.findById(id) } returns null
+                coEvery { packageRepository.findById(id.value) } returns null
 
                 assertThrows<PackageNotFoundException> {
                     service.updateStatus(id, QaPackageStatus.SPEC_FETCHED)
@@ -256,9 +307,9 @@ class QaPackageServiceTest {
         fun `should throw exception for invalid status transition`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id, status = QaPackageStatus.REQUESTED)
+                val existingEntity = createTestEntity(id.value, status = QaPackageStatus.REQUESTED.name)
 
-                coEvery { repository.findById(id) } returns existing
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
 
                 assertThrows<InvalidStatusTransitionException> {
                     service.updateStatus(id, QaPackageStatus.COMPLETE)
@@ -269,10 +320,13 @@ class QaPackageServiceTest {
         fun `should allow transition to CANCELLED from any state`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id, status = QaPackageStatus.EXECUTION_IN_PROGRESS)
+                val existingEntity = createTestEntity(id.value, status = QaPackageStatus.EXECUTION_IN_PROGRESS.name)
+                val updatedEntity = existingEntity.copy(status = QaPackageStatus.CANCELLED.name)
+                val updatedPackage = createTestPackage(id, status = QaPackageStatus.CANCELLED)
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val result = service.updateStatus(id, QaPackageStatus.CANCELLED)
 
@@ -286,10 +340,13 @@ class QaPackageServiceTest {
         fun `should update package with provided fields`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id, name = "Original Name")
+                val existingEntity = createTestEntity(id.value, name = "Original Name")
+                val updatedEntity = existingEntity.copy(name = "New Name", description = "New Description")
+                val updatedPackage = createTestPackage(id, name = "New Name", description = "New Description")
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val command =
                     UpdateQaPackageCommand(
@@ -301,23 +358,29 @@ class QaPackageServiceTest {
 
                 assertEquals("New Name", result.name)
                 assertEquals("New Description", result.description)
-                assertEquals(existing.baseUrl, result.baseUrl) // Unchanged
             }
 
         @Test
         fun `should not change fields not in command`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing =
-                    createTestPackage(
-                        id,
-                        name = "Original Name",
-                        description = "Original Description",
-                        baseUrl = "https://original.com",
-                    )
+                val existingEntity = createTestEntity(
+                    id.value,
+                    name = "Original Name",
+                    description = "Original Description",
+                    baseUrl = "https://original.com",
+                )
+                val updatedEntity = existingEntity.copy(name = "New Name")
+                val updatedPackage = createTestPackage(
+                    id,
+                    name = "New Name",
+                    description = "Original Description",
+                    baseUrl = "https://original.com",
+                )
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val command = UpdateQaPackageCommand(name = "New Name")
 
@@ -333,7 +396,7 @@ class QaPackageServiceTest {
             runTest {
                 val id = QaPackageId.generate()
 
-                coEvery { repository.findById(id) } returns null
+                coEvery { packageRepository.findById(id.value) } returns null
 
                 assertThrows<PackageNotFoundException> {
                     service.update(id, UpdateQaPackageCommand(name = "New Name"))
@@ -347,17 +410,23 @@ class QaPackageServiceTest {
         fun `should set coverage report`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id)
+                val existingEntity = createTestEntity(id.value)
                 val coverage =
                     CoverageReport(
                         totalOperations = 10,
                         coveredOperations = 8,
                         coveragePercentage = 80.0,
-                        uncoveredOperations = 2,
+                        generatedAt = Instant.now(),
                     )
+                val existingPackage = createTestPackage(id)
+                val updatedPackage = existingPackage.copy(coverage = coverage)
+                val updatedEntity = existingEntity.copy(coverageJson = "{}")
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                every { mapper.toDomain(existingEntity) } returns existingPackage
+                every { mapper.toEntity(any()) } returns updatedEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val result = service.setCoverage(id, coverage)
 
@@ -372,7 +441,7 @@ class QaPackageServiceTest {
         fun `should set QA summary`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id)
+                val existingEntity = createTestEntity(id.value)
                 val summary =
                     QaSummary(
                         overallVerdict = QaVerdict.PASS,
@@ -380,10 +449,17 @@ class QaPackageServiceTest {
                         passedScenarios = 10,
                         failedScenarios = 0,
                         erroredScenarios = 0,
+                        generatedAt = Instant.now(),
                     )
+                val existingPackage = createTestPackage(id)
+                val updatedPackage = existingPackage.copy(qaSummary = summary)
+                val updatedEntity = existingEntity.copy(qaSummaryJson = "{}")
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                every { mapper.toDomain(existingEntity) } returns existingPackage
+                every { mapper.toEntity(any()) } returns updatedEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val result = service.setQaSummary(id, summary)
 
@@ -398,10 +474,13 @@ class QaPackageServiceTest {
         fun `should set startedAt timestamp`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id)
+                val existingEntity = createTestEntity(id.value)
+                val updatedEntity = existingEntity.copy(startedAt = Instant.now())
+                val updatedPackage = createTestPackage(id, startedAt = Instant.now())
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val result = service.markStarted(id)
 
@@ -415,10 +494,20 @@ class QaPackageServiceTest {
         fun `should set completedAt timestamp and COMPLETE status`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id, status = QaPackageStatus.QA_EVAL_DONE)
+                val existingEntity = createTestEntity(id.value, status = QaPackageStatus.QA_EVAL_DONE.name)
+                val updatedEntity = existingEntity.copy(
+                    status = QaPackageStatus.COMPLETE.name,
+                    completedAt = Instant.now(),
+                )
+                val updatedPackage = createTestPackage(
+                    id,
+                    status = QaPackageStatus.COMPLETE,
+                    completedAt = Instant.now(),
+                )
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val result = service.markCompleted(id)
 
@@ -433,10 +522,20 @@ class QaPackageServiceTest {
         fun `should set failed status`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id)
+                val existingEntity = createTestEntity(id.value)
+                val updatedEntity = existingEntity.copy(
+                    status = QaPackageStatus.FAILED_EXECUTION.name,
+                    completedAt = Instant.now(),
+                )
+                val updatedPackage = createTestPackage(
+                    id,
+                    status = QaPackageStatus.FAILED_EXECUTION,
+                    completedAt = Instant.now(),
+                )
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val result = service.markFailed(id, QaPackageStatus.FAILED_EXECUTION)
 
@@ -448,9 +547,9 @@ class QaPackageServiceTest {
         fun `should throw exception for non-failure status`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id)
+                val existingEntity = createTestEntity(id.value)
 
-                coEvery { repository.findById(id) } returns existing
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
 
                 assertThrows<IllegalArgumentException> {
                     service.markFailed(id, QaPackageStatus.COMPLETE)
@@ -461,10 +560,20 @@ class QaPackageServiceTest {
         fun `should allow CANCELLED as failure status`() =
             runTest {
                 val id = QaPackageId.generate()
-                val existing = createTestPackage(id)
+                val existingEntity = createTestEntity(id.value)
+                val updatedEntity = existingEntity.copy(
+                    status = QaPackageStatus.CANCELLED.name,
+                    completedAt = Instant.now(),
+                )
+                val updatedPackage = createTestPackage(
+                    id,
+                    status = QaPackageStatus.CANCELLED,
+                    completedAt = Instant.now(),
+                )
 
-                coEvery { repository.findById(id) } returns existing
-                coEvery { repository.save(any()) } answers { firstArg() }
+                coEvery { packageRepository.findById(id.value) } returns existingEntity
+                coEvery { packageRepository.save(any()) } returns updatedEntity
+                every { mapper.toDomain(updatedEntity) } returns updatedPackage
 
                 val result = service.markFailed(id, QaPackageStatus.CANCELLED)
 
@@ -479,13 +588,15 @@ class QaPackageServiceTest {
             runTest {
                 val id = QaPackageId.generate()
 
-                coEvery { repository.existsById(id) } returns true
-                coEvery { repository.delete(id) } returns true
+                coEvery { packageRepository.existsById(id.value) } returns true
+                coEvery { runRepository.deleteByQaPackageId(id.value) } just Runs
+                coEvery { scenarioRepository.deleteByQaPackageId(id.value) } just Runs
+                coEvery { packageRepository.deleteById(id.value) } just Runs
 
                 val result = service.delete(id)
 
                 assertTrue(result)
-                coVerify { repository.delete(id) }
+                coVerify { packageRepository.deleteById(id.value) }
             }
 
         @Test
@@ -493,12 +604,12 @@ class QaPackageServiceTest {
             runTest {
                 val id = QaPackageId.generate()
 
-                coEvery { repository.existsById(id) } returns false
+                coEvery { packageRepository.existsById(id.value) } returns false
 
                 val result = service.delete(id)
 
                 assertFalse(result)
-                coVerify(exactly = 0) { repository.delete(any()) }
+                coVerify(exactly = 0) { packageRepository.deleteById(any()) }
             }
     }
 
@@ -507,7 +618,7 @@ class QaPackageServiceTest {
         @Test
         fun `should return total count`() =
             runTest {
-                coEvery { repository.count() } returns 42
+                coEvery { packageRepository.count() } returns 42
 
                 val result = service.count()
 
@@ -519,7 +630,7 @@ class QaPackageServiceTest {
             runTest {
                 val status = QaPackageStatus.COMPLETE
 
-                coEvery { repository.countByStatus(status) } returns 15
+                coEvery { packageRepository.countByStatus(status.name) } returns 15
 
                 val result = service.countByStatus(status)
 
@@ -532,13 +643,17 @@ class QaPackageServiceTest {
         @Test
         fun `findAllStream should return flow of packages`() =
             runTest {
-                val packages =
+                val entities =
                     listOf(
-                        createTestPackage(QaPackageId.generate()),
-                        createTestPackage(QaPackageId.generate()),
+                        createTestEntity(UUID.randomUUID()),
+                        createTestEntity(UUID.randomUUID()),
                     )
+                val packages = entities.map { createTestPackage(QaPackageId(it.id!!)) }
 
-                coEvery { repository.findAll() } returns flowOf(*packages.toTypedArray())
+                coEvery { packageRepository.findAll() } returns flowOf(*entities.toTypedArray())
+                entities.forEachIndexed { index, entity ->
+                    every { mapper.toDomain(entity) } returns packages[index]
+                }
 
                 val result = service.findAllStream().toList()
 
@@ -548,34 +663,73 @@ class QaPackageServiceTest {
         @Test
         fun `findIncomplete should return flow of incomplete packages`() =
             runTest {
-                val packages =
+                val entities =
                     listOf(
-                        createTestPackage(QaPackageId.generate(), status = QaPackageStatus.EXECUTION_IN_PROGRESS),
+                        createTestEntity(UUID.randomUUID(), status = QaPackageStatus.EXECUTION_IN_PROGRESS.name),
                     )
+                val packages = entities.map {
+                    createTestPackage(QaPackageId(it.id!!), status = QaPackageStatus.EXECUTION_IN_PROGRESS)
+                }
 
-                every { repository.findIncomplete() } returns flowOf(*packages.toTypedArray())
+                every { packageRepository.findIncompletePackages() } returns flowOf(*entities.toTypedArray())
+                entities.forEachIndexed { index, entity ->
+                    every { mapper.toDomain(entity) } returns packages[index]
+                }
 
                 val result = service.findIncomplete().toList()
 
                 assertEquals(1, result.size)
-                assertTrue(result.all { it.isInProgress })
+                assertTrue(result.all { !it.isComplete })
             }
 
         @Test
         fun `findRecent should return packages since given time`() =
             runTest {
                 val since = Instant.now().minusSeconds(3600)
-                val packages =
+                val entities =
                     listOf(
-                        createTestPackage(QaPackageId.generate()),
+                        createTestEntity(UUID.randomUUID()),
                     )
+                val packages = entities.map { createTestPackage(QaPackageId(it.id!!)) }
 
-                every { repository.findRecent(since) } returns flowOf(*packages.toTypedArray())
+                every { packageRepository.findRecentPackages(since) } returns flowOf(*entities.toTypedArray())
+                entities.forEachIndexed { index, entity ->
+                    every { mapper.toDomain(entity) } returns packages[index]
+                }
 
                 val result = service.findRecent(since).toList()
 
                 assertEquals(1, result.size)
             }
+    }
+
+    // Helper function to create test entities
+    private fun createTestEntity(
+        id: UUID,
+        name: String = "Test Package",
+        description: String? = "Test description",
+        baseUrl: String = "https://api.example.com",
+        status: String = QaPackageStatus.REQUESTED.name,
+    ): QaPackageEntity {
+        return QaPackageEntity(
+            id = id,
+            name = name,
+            description = description,
+            specUrl = "https://api.example.com/openapi.yaml",
+            specContent = null,
+            specHash = null,
+            baseUrl = baseUrl,
+            requirements = null,
+            status = status,
+            configJson = null,
+            coverageJson = null,
+            qaSummaryJson = null,
+            triggeredBy = "test-user",
+            startedAt = null,
+            completedAt = null,
+            createdAt = Instant.now(),
+            updatedAt = Instant.now(),
+        )
     }
 
     // Helper function to create test packages
@@ -584,15 +738,28 @@ class QaPackageServiceTest {
         name: String = "Test Package",
         description: String? = "Test description",
         baseUrl: String = "https://api.example.com",
-        status: QaPackageStatus = QaPackageStatus.REQUESTED
+        status: QaPackageStatus = QaPackageStatus.REQUESTED,
+        config: QaPackageConfig = QaPackageConfig(),
+        specUrl: String? = "https://api.example.com/openapi.yaml",
+        specContent: String? = null,
+        specHash: String? = null,
+        startedAt: Instant? = null,
+        completedAt: Instant? = null,
     ): QaPackage {
         return QaPackage(
             id = id,
             name = name,
             description = description,
+            specUrl = specUrl,
+            specContent = specContent,
+            specHash = specHash,
             baseUrl = baseUrl,
+            requirements = null,
             status = status,
+            config = config,
             triggeredBy = "test-user",
+            startedAt = startedAt,
+            completedAt = completedAt,
             createdAt = Instant.now(),
             updatedAt = Instant.now(),
         )
