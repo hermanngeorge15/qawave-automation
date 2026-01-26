@@ -12,7 +12,9 @@ import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
+import { Route as AppScenariosRouteImport } from './routes/_app/scenarios'
 import { Route as AppPackagesRouteImport } from './routes/_app/packages'
+import { Route as AppRunsRunIdRouteImport } from './routes/_app/runs.$runId'
 import { Route as AppPackagesNewRouteImport } from './routes/_app/packages.new'
 import { Route as AppPackagesPackageIdRouteImport } from './routes/_app/packages.$packageId'
 
@@ -30,9 +32,19 @@ const AppSettingsRoute = AppSettingsRouteImport.update({
   path: '/settings',
   getParentRoute: () => AppRoute,
 } as any)
+const AppScenariosRoute = AppScenariosRouteImport.update({
+  id: '/scenarios',
+  path: '/scenarios',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppPackagesRoute = AppPackagesRouteImport.update({
   id: '/packages',
   path: '/packages',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppRunsRunIdRoute = AppRunsRunIdRouteImport.update({
+  id: '/runs/$runId',
+  path: '/runs/$runId',
   getParentRoute: () => AppRoute,
 } as any)
 const AppPackagesNewRoute = AppPackagesNewRouteImport.update({
@@ -49,44 +61,61 @@ const AppPackagesPackageIdRoute = AppPackagesPackageIdRouteImport.update({
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
   '/packages': typeof AppPackagesRouteWithChildren
+  '/scenarios': typeof AppScenariosRoute
   '/settings': typeof AppSettingsRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/packages/new': typeof AppPackagesNewRoute
+  '/runs/$runId': typeof AppRunsRunIdRoute
 }
 export interface FileRoutesByTo {
   '/packages': typeof AppPackagesRouteWithChildren
+  '/scenarios': typeof AppScenariosRoute
   '/settings': typeof AppSettingsRoute
   '/': typeof AppIndexRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/packages/new': typeof AppPackagesNewRoute
+  '/runs/$runId': typeof AppRunsRunIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
   '/_app/packages': typeof AppPackagesRouteWithChildren
+  '/_app/scenarios': typeof AppScenariosRoute
   '/_app/settings': typeof AppSettingsRoute
   '/_app/': typeof AppIndexRoute
   '/_app/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/_app/packages/new': typeof AppPackagesNewRoute
+  '/_app/runs/$runId': typeof AppRunsRunIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
     | '/packages'
+    | '/scenarios'
     | '/settings'
     | '/packages/$packageId'
     | '/packages/new'
+    | '/runs/$runId'
   fileRoutesByTo: FileRoutesByTo
-  to: '/packages' | '/settings' | '/' | '/packages/$packageId' | '/packages/new'
+  to:
+    | '/packages'
+    | '/scenarios'
+    | '/settings'
+    | '/'
+    | '/packages/$packageId'
+    | '/packages/new'
+    | '/runs/$runId'
   id:
     | '__root__'
     | '/_app'
     | '/_app/packages'
+    | '/_app/scenarios'
     | '/_app/settings'
     | '/_app/'
     | '/_app/packages/$packageId'
     | '/_app/packages/new'
+    | '/_app/runs/$runId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -116,11 +145,25 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppSettingsRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/scenarios': {
+      id: '/_app/scenarios'
+      path: '/scenarios'
+      fullPath: '/scenarios'
+      preLoaderRoute: typeof AppScenariosRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/packages': {
       id: '/_app/packages'
       path: '/packages'
       fullPath: '/packages'
       preLoaderRoute: typeof AppPackagesRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/runs/$runId': {
+      id: '/_app/runs/$runId'
+      path: '/runs/$runId'
+      fullPath: '/runs/$runId'
+      preLoaderRoute: typeof AppRunsRunIdRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/packages/new': {
@@ -156,14 +199,18 @@ const AppPackagesRouteWithChildren = AppPackagesRoute._addFileChildren(
 
 interface AppRouteChildren {
   AppPackagesRoute: typeof AppPackagesRouteWithChildren
+  AppScenariosRoute: typeof AppScenariosRoute
   AppSettingsRoute: typeof AppSettingsRoute
   AppIndexRoute: typeof AppIndexRoute
+  AppRunsRunIdRoute: typeof AppRunsRunIdRoute
 }
 
 const AppRouteChildren: AppRouteChildren = {
   AppPackagesRoute: AppPackagesRouteWithChildren,
+  AppScenariosRoute: AppScenariosRoute,
   AppSettingsRoute: AppSettingsRoute,
   AppIndexRoute: AppIndexRoute,
+  AppRunsRunIdRoute: AppRunsRunIdRoute,
 }
 
 const AppRouteWithChildren = AppRoute._addFileChildren(AppRouteChildren)

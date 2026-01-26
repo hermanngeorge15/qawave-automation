@@ -1,10 +1,13 @@
-import type { QaPackageStatus } from '@/api/types'
+import type { QaPackageStatus, ScenarioStatus, TestRunStatus, StepResultStatus } from '@/api/types'
+
+type Status = QaPackageStatus | ScenarioStatus | TestRunStatus | StepResultStatus
 
 interface StatusBadgeProps {
-  status: QaPackageStatus
+  status: Status
 }
 
-const statusConfig: Record<QaPackageStatus, { label: string; className: string }> = {
+const statusConfig: Record<Status, { label: string; className: string }> = {
+  // Package statuses
   DRAFT: {
     label: 'Draft',
     className: 'bg-secondary-700 text-secondary-200',
@@ -17,6 +20,7 @@ const statusConfig: Record<QaPackageStatus, { label: string; className: string }
     label: 'Ready',
     className: 'bg-success-600 text-white',
   },
+  // Shared statuses
   RUNNING: {
     label: 'Running',
     className: 'bg-primary-500 text-white animate-pulse',
@@ -27,6 +31,29 @@ const statusConfig: Record<QaPackageStatus, { label: string; className: string }
   },
   FAILED: {
     label: 'Failed',
+    className: 'bg-danger-600 text-white',
+  },
+  // Scenario statuses
+  PENDING: {
+    label: 'Pending',
+    className: 'bg-yellow-500/10 text-yellow-500',
+  },
+  PASSED: {
+    label: 'Passed',
+    className: 'bg-success-600 text-white',
+  },
+  SKIPPED: {
+    label: 'Skipped',
+    className: 'bg-secondary-500/10 text-secondary-400',
+  },
+  // Run status
+  CANCELLED: {
+    label: 'Cancelled',
+    className: 'bg-secondary-500/10 text-secondary-400',
+  },
+  // Step status
+  ERROR: {
+    label: 'Error',
     className: 'bg-danger-600 text-white',
   },
 }
