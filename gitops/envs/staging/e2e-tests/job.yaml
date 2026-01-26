@@ -1,0 +1,70 @@
+---
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: e2e-tests-config
+  namespace: staging
+data:
+  BASE_URL: "http://frontend.staging.svc.cluster.local"
+  API_URL: "http://backend.staging.svc.cluster.local:8080"
+---
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: e2e-tests
+  namespace: staging
+  labels:
+    app: e2e-tests
+spec:
+  ttlSecondsAfterFinished: 3600  # Clean up after 1 hour
+  backoffLimit: 2
+  template:
+    metadata:
+      labels:
+        app: e2e-tests
+    spec:
+      restartPolicy: Never
+      containers:
+        - name: playwright
+          image: mcr.microsoft.com/playwright:v1.40.0-focal
+          command:
+            - /bin/bash
+            - -c
+            - |
+              set -e
+              echo "=== QAWave E2E Tests ==="
+              echo "Starting at $(date)"
+
+              # Clone the repository
+              apt-get update && apt-get install -y git
+              git clone --depth 1 https://github.com/hermanngeorge15/qawave-automation.git /app
+              cd /app/e2e-tests
+
+              # Install dependencies
+              npm ci
+
+              # Run tests with staging config
+              echo "Running E2E tests against staging..."
+              npx playwright test --config=playwright.staging.config.ts --reporter=list
+
+              echo "=== Tests completed at $(date) ==="
+          env:
+            - name: BASE_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: e2e-tests-config
+                  key: BASE_URL
+            - name: API_URL
+              valueFrom:
+                configMapKeyRef:
+                  name: e2e-tests-config
+                  key: API_URL
+            - name: CI
+              value: "true"
+          resources:
+            requests:
+              cpu: 500m
+              memory: 1Gi
+            limits:
+              cpu: 2000m
+              memory: 2Gi

@@ -1,0 +1,322 @@
+name: Deploy to Staging
+
+on:
+  push:
+    branches: [develop]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:  # Allow manual trigger
+
+env:
+  REGISTRY: ghcr.io
+  # URLs will be set dynamically or use IP directly
+  # Update these after infrastructure is created
+  STAGING_URL: ${{ vars.STAGING_URL || 'http://LOAD_BALANCER_IP' }}
+  STAGING_API_URL: ${{ vars.STAGING_API_URL || 'http://LOAD_BALANCER_IP:8080' }}
+  JAVA_VERSION: '21'
+  NODE_VERSION: '20'
+
+jobs:
+  # =============================================================================
+  # Backend Build
+  # =============================================================================
+  build-backend:
+    name: Build Backend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    services:
+      postgres:
+        image: postgres:16-alpine
+        env:
+          POSTGRES_DB: qawave_test
+          POSTGRES_USER: test
+          POSTGRES_PASSWORD: test
+        ports:
+          - 5432:5432
+        options: >-
+          --health-cmd pg_isready
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+      redis:
+        image: redis:7-alpine
+        ports:
+          - 6379:6379
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Set up JDK ${{ env.JAVA_VERSION }}
+        uses: actions/setup-java@v4
+        with:
+          java-version: ${{ env.JAVA_VERSION }}
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Grant execute permission for gradlew
+        working-directory: backend
+        run: chmod +x gradlew
+
+      - name: Run tests
+        working-directory: backend
+        run: ./gradlew test --no-daemon
+        env:
+          SPRING_R2DBC_URL: r2dbc:postgresql://localhost:5432/qawave_test
+          SPRING_R2DBC_USERNAME: test
+          SPRING_R2DBC_PASSWORD: test
+          SPRING_DATA_REDIS_HOST: localhost
+          SPRING_DATA_REDIS_PORT: 6379
+
+      - name: Build JAR
+        working-directory: backend
+        run: ./gradlew bootJar --no-daemon
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/backend
+          tags: |
+            type=raw,value=staging
+            type=sha,prefix=staging-
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: backend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # =============================================================================
+  # Frontend Build
+  # =============================================================================
+  build-frontend:
+    name: Build Frontend
+    runs-on: ubuntu-latest
+    permissions:
+      contents: read
+      packages: write
+    outputs:
+      image-tag: ${{ steps.meta.outputs.tags }}
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: frontend/package-lock.json
+
+      - name: Install dependencies
+        working-directory: frontend
+        run: npm ci
+
+      - name: Type check
+        working-directory: frontend
+        run: npm run typecheck
+
+      - name: Lint
+        working-directory: frontend
+        run: npm run lint
+
+      - name: Run tests
+        working-directory: frontend
+        run: npm run test:coverage
+
+      - name: Build for staging
+        working-directory: frontend
+        run: npm run build
+        env:
+          VITE_API_BASE_URL: ${{ env.STAGING_API_URL }}
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Log in to Container Registry
+        uses: docker/login-action@v3
+        with:
+          registry: ${{ env.REGISTRY }}
+          username: ${{ github.actor }}
+          password: ${{ secrets.GITHUB_TOKEN }}
+
+      - name: Extract metadata
+        id: meta
+        uses: docker/metadata-action@v5
+        with:
+          images: ${{ env.REGISTRY }}/${{ github.repository }}/frontend
+          tags: |
+            type=raw,value=staging
+            type=sha,prefix=staging-
+
+      - name: Build and push
+        uses: docker/build-push-action@v5
+        with:
+          context: frontend
+          push: true
+          tags: ${{ steps.meta.outputs.tags }}
+          labels: ${{ steps.meta.outputs.labels }}
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+  # =============================================================================
+  # Deploy to Staging (ArgoCD auto-syncs from repo)
+  # =============================================================================
+  deploy-staging:
+    name: Deploy to Staging
+    needs: [build-backend, build-frontend]
+    runs-on: ubuntu-latest
+    environment: staging
+
+    steps:
+      - name: Wait for ArgoCD auto-sync
+        run: |
+          echo "Images pushed with :staging tag"
+          echo "ArgoCD will auto-sync from develop branch..."
+          echo "Waiting 90s for ArgoCD to detect changes and sync..."
+          sleep 90
+
+      - name: Health check
+        run: |
+          echo "Checking staging health..."
+          for i in {1..10}; do
+            if curl -sf "${{ env.STAGING_URL }}/health" 2>/dev/null || curl -sf "${{ env.STAGING_API_URL }}/actuator/health" 2>/dev/null; then
+              echo "Staging is healthy!"
+              exit 0
+            fi
+            echo "Waiting for staging to be ready... ($i/10)"
+            sleep 30
+          done
+          echo "Warning: Health check timed out, continuing anyway..."
+
+  # =============================================================================
+  # E2E Tests on Staging
+  # =============================================================================
+  e2e-tests:
+    name: E2E Tests
+    needs: deploy-staging
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v4
+
+      - name: Setup Node.js
+        uses: actions/setup-node@v4
+        with:
+          node-version: ${{ env.NODE_VERSION }}
+          cache: 'npm'
+          cache-dependency-path: e2e-tests/package-lock.json
+
+      - name: Install dependencies
+        working-directory: e2e-tests
+        run: npm ci
+
+      - name: Install Playwright browsers
+        working-directory: e2e-tests
+        run: npx playwright install --with-deps chromium
+
+      - name: Run E2E tests against staging
+        working-directory: e2e-tests
+        run: npx playwright test --config=playwright.staging.config.ts
+        env:
+          BASE_URL: ${{ env.STAGING_URL }}
+          API_URL: ${{ env.STAGING_API_URL }}
+
+      - name: Upload Playwright report
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: playwright-report-staging
+          path: e2e-tests/playwright-report/
+          retention-days: 14
+
+      - name: Upload test results
+        if: always()
+        uses: actions/upload-artifact@v4
+        with:
+          name: test-results-staging
+          path: e2e-tests/results/
+          retention-days: 14
+
+  # =============================================================================
+  # PR Comment with Results
+  # =============================================================================
+  comment-pr:
+    name: Comment PR
+    needs: e2e-tests
+    runs-on: ubuntu-latest
+    if: github.event_name == 'pull_request'
+
+    steps:
+      - name: Comment PR with results
+        uses: actions/github-script@v7
+        with:
+          script: |
+            const { data: comments } = await github.rest.issues.listComments({
+              owner: context.repo.owner,
+              repo: context.repo.repo,
+              issue_number: context.issue.number,
+            });
+
+            const botComment = comments.find(comment =>
+              comment.user.type === 'Bot' &&
+              comment.body.includes('E2E Test Results')
+            );
+
+            const body = `## E2E Test Results
+
+            ✅ **Tests passed on staging environment**
+
+            | Environment | Status |
+            |-------------|--------|
+            | Staging URL | ${{ env.STAGING_URL }} |
+            | API URL | ${{ env.STAGING_API_URL }} |
+
+            🔗 [View Full Report](https://github.com/${{ github.repository }}/actions/runs/${{ github.run_id }})
+
+            ---
+            *Tested with Playwright against staging environment*`;
+
+            if (botComment) {
+              await github.rest.issues.updateComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                comment_id: botComment.id,
+                body
+              });
+            } else {
+              await github.rest.issues.createComment({
+                owner: context.repo.owner,
+                repo: context.repo.repo,
+                issue_number: context.issue.number,
+                body
+              });
+            }
