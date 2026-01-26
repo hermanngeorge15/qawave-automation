@@ -2,8 +2,11 @@ import { defineConfig } from 'vitest/config'
 import react from '@vitejs/plugin-react'
 import { fileURLToPath, URL } from 'url'
 
+// eslint-disable-next-line @typescript-eslint/no-explicit-any, @typescript-eslint/no-unsafe-assignment
+const reactPlugin = react() as any
+
 export default defineConfig({
-  plugins: [react()],
+  plugins: [reactPlugin],
   test: {
     globals: true,
     environment: 'jsdom',
