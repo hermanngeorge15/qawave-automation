@@ -1,5 +1,12 @@
 # Changelog
 
+## [0.1.2](https://github.com/hermanngeorge15/qawave-automation/compare/frontend-v0.1.1...frontend-v0.1.2) (2026-01-26)
+
+
+### Bug Fixes
+
+* resolve infinite re-render loop in CreatePackageModal ([f99d0ab](https://github.com/hermanngeorge15/qawave-automation/commit/f99d0ab1d2debf5e50c365669acd39d53443b123)), closes [#124](https://github.com/hermanngeorge15/qawave-automation/issues/124)
+
 ## [0.1.1](https://github.com/hermanngeorge15/qawave-automation/compare/frontend-v0.1.0...frontend-v0.1.1) (2026-01-26)
 
 
