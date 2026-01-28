@@ -1,0 +1,66 @@
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: qawave-staging
+
+resources:
+  - namespace.yaml
+  - ../../base/backend
+  - ../../base/data-services/postgresql
+  - ../../base/data-services/redis
+  # Kafka excluded for staging to reduce resource usage
+
+# Staging-specific patches
+patches:
+  # Reduce backend replicas to 1
+  - patch: |-
+      - op: replace
+        path: /spec/replicas
+        value: 1
+    target:
+      kind: Deployment
+      name: backend
+
+  # Disable HPA for staging (single replica)
+  - patch: |-
+      - op: replace
+        path: /spec/minReplicas
+        value: 1
+      - op: replace
+        path: /spec/maxReplicas
+        value: 2
+    target:
+      kind: HorizontalPodAutoscaler
+      name: backend
+
+  # Reduce PDB for single replica
+  - patch: |-
+      - op: replace
+        path: /spec/minAvailable
+        value: 0
+    target:
+      kind: PodDisruptionBudget
+      name: backend
+
+  # Use staging Spring profile
+  - patch: |-
+      - op: replace
+        path: /spec/template/spec/containers/0/env/0/value
+        value: "staging"
+    target:
+      kind: Deployment
+      name: backend
+
+# Strategic merge patches
+patchesStrategicMerge:
+  - backend-config-patch.yaml
+
+# Staging-specific labels
+commonLabels:
+  environment: staging
+
+# Staging images (use staging tags)
+images:
+  - name: ghcr.io/your-org/qawave/backend
+    newName: ghcr.io/hermanngeorge15/qawave-automation/backend
+    newTag: staging

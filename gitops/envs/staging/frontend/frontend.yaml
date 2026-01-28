@@ -19,6 +19,8 @@ spec:
         app: qawave
         component: frontend
     spec:
+      imagePullSecrets:
+        - name: ghcr-secret
       containers:
         - name: frontend
           image: ghcr.io/hermanngeorge15/qawave-frontend:latest

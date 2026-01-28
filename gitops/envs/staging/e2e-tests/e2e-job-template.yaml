@@ -1,0 +1,78 @@
+---
+# E2E Test Job Template
+# Usage: Replace ${RUN_ID} with unique identifier before applying
+#   cat e2e-job-template.yaml | sed "s/\${RUN_ID}/$(date +%s)/g" | kubectl apply -f -
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: e2e-tests-${RUN_ID}
+  namespace: staging
+  labels:
+    app: qawave
+    component: e2e-tests
+    run-id: "${RUN_ID}"
+spec:
+  # Auto-cleanup after 1 hour
+  ttlSecondsAfterFinished: 3600
+  # Don't retry failed tests
+  backoffLimit: 0
+  # Timeout after 15 minutes
+  activeDeadlineSeconds: 900
+  template:
+    metadata:
+      labels:
+        app: qawave
+        component: e2e-tests
+        run-id: "${RUN_ID}"
+    spec:
+      restartPolicy: Never
+      imagePullSecrets:
+        - name: ghcr-secret
+      containers:
+        - name: playwright
+          image: ghcr.io/hermanngeorge15/qawave-e2e-tests:latest
+          imagePullPolicy: Always
+          env:
+            # Use Kubernetes service DNS names (internal cluster networking)
+            - name: BASE_URL
+              value: "http://frontend.staging.svc.cluster.local"
+            - name: API_URL
+              value: "http://backend.staging.svc.cluster.local:8080"
+            - name: CI
+              value: "true"
+            - name: RUN_ID
+              value: "${RUN_ID}"
+          resources:
+            requests:
+              memory: "1Gi"
+              cpu: "500m"
+            limits:
+              memory: "2Gi"
+              cpu: "2000m"
+          volumeMounts:
+            - name: test-results
+              mountPath: /app/test-results
+            - name: playwright-report
+              mountPath: /app/playwright-report
+      volumes:
+        - name: test-results
+          emptyDir: {}
+        - name: playwright-report
+          emptyDir: {}
+---
+# Optional: ConfigMap for custom test configuration
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: e2e-test-config
+  namespace: staging
+  labels:
+    app: qawave
+    component: e2e-tests
+data:
+  # Override test timeout (in milliseconds)
+  TEST_TIMEOUT: "90000"
+  # Number of retries
+  RETRIES: "2"
+  # Workers count
+  WORKERS: "2"
