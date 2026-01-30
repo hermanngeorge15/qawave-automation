@@ -8,3 +8,4 @@ export { PackageDetailPage } from './PackageDetailPage';
 export { RunDetailPage } from './RunDetailPage';
 export { ScenariosPage } from './ScenariosPage';
 export { CreatePackageModal, type PackageFormData } from './CreatePackageModal';
+export { KeycloakLoginPage } from './KeycloakLoginPage';
