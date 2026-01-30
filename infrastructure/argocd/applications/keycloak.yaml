@@ -1,5 +1,53 @@
 # ArgoCD Application for Keycloak
 # Identity and Access Management Server
+#
+# Prerequisites:
+#   1. Apply keycloak-secrets and keycloak-db-secrets (sealed secrets)
+#   2. PostgreSQL must be running and keycloak database created
+#   3. qawave namespace must exist
+#
+# Deployment order (sync-wave):
+#   0. keycloak-config (secrets, configmaps)
+#   1. keycloak (Helm chart)
+
+---
+# Deploy Keycloak configuration resources first
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qawave-keycloak-config
+  namespace: argocd
+  labels:
+    app: qawave
+    component: keycloak-config
+    environment: production
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"  # Deploy config first
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: qawave
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: infrastructure/kubernetes/base/auth/keycloak
+    directory:
+      recurse: true
+      include: "*.yaml"
+      exclude: "values.yaml|secrets.yaml.example"
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: qawave
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ApplyOutOfSyncOnly=true
+
+---
+# Deploy Keycloak using Bitnami Helm chart
 apiVersion: argoproj.io/v1alpha1
 kind: Application
 metadata:
@@ -10,7 +58,9 @@ metadata:
     component: keycloak
     environment: production
   annotations:
-    argocd.argoproj.io/sync-wave: "1"  # Deploy after data services
+    argocd.argoproj.io/sync-wave: "1"  # Deploy after config resources
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
 spec:
   project: qawave
   source:
@@ -18,20 +68,213 @@ spec:
     chart: keycloak
     targetRevision: "24.*"
     helm:
-      valueFiles:
-        - values.yaml
-      # Override values inline if needed
-      parameters:
-        - name: auth.existingSecret
-          value: keycloak-secrets
-        - name: externalDatabase.existingSecret
-          value: keycloak-db-secrets
-        - name: externalDatabase.existingSecretPasswordKey
-          value: password
-      # Additional values from repository
-      fileParameters:
-        - name: values.yaml
-          path: infrastructure/kubernetes/base/auth/keycloak/values.yaml
+      releaseName: keycloak
+      valuesObject:
+        # Keycloak version
+        image:
+          tag: "24.0.4"
+
+        # Authentication configuration
+        auth:
+          adminUser: admin
+          existingSecret: keycloak-secrets
+          passwordSecretKey: admin-password
+
+        # Production mode
+        production: true
+
+        # Proxy configuration for running behind load balancer
+        proxy: edge
+
+        # HTTP configuration
+        httpRelativePath: "/"
+
+        # Logging
+        logging:
+          level: INFO
+
+        # PostgreSQL - use external
+        postgresql:
+          enabled: false
+
+        externalDatabase:
+          host: postgresql.qawave.svc.cluster.local
+          port: 5432
+          database: keycloak
+          user: keycloak
+          existingSecret: keycloak-db-secrets
+          existingSecretPasswordKey: password
+
+        # Service configuration
+        service:
+          type: ClusterIP
+          ports:
+            http: 80
+            https: 443
+
+        # Ingress configuration
+        ingress:
+          enabled: true
+          ingressClassName: nginx
+          hostname: auth.qawave.local
+          path: /
+          pathType: Prefix
+          annotations:
+            cert-manager.io/cluster-issuer: "letsencrypt-prod"
+            nginx.ingress.kubernetes.io/proxy-buffer-size: "128k"
+            nginx.ingress.kubernetes.io/proxy-body-size: "10m"
+          tls: true
+
+        # Resource limits
+        resources:
+          requests:
+            cpu: 500m
+            memory: 1Gi
+          limits:
+            cpu: 2000m
+            memory: 2Gi
+
+        # Single replica for now
+        replicaCount: 1
+
+        # Pod disruption budget
+        pdb:
+          create: true
+          minAvailable: 1
+
+        # Probes
+        livenessProbe:
+          enabled: true
+          initialDelaySeconds: 120
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+          successThreshold: 1
+
+        readinessProbe:
+          enabled: true
+          initialDelaySeconds: 30
+          periodSeconds: 10
+          timeoutSeconds: 5
+          failureThreshold: 6
+          successThreshold: 1
+
+        startupProbe:
+          enabled: true
+          initialDelaySeconds: 60
+          periodSeconds: 5
+          timeoutSeconds: 1
+          failureThreshold: 60
+          successThreshold: 1
+
+        # Extra environment variables
+        extraEnvVars:
+          - name: KC_HEALTH_ENABLED
+            value: "true"
+          - name: KC_METRICS_ENABLED
+            value: "true"
+          - name: KC_HOSTNAME_STRICT
+            value: "false"
+          - name: KC_HOSTNAME_STRICT_HTTPS
+            value: "false"
+          - name: KC_CACHE
+            value: "local"
+          - name: KC_SPI_THEME_DEFAULT
+            value: "keycloak"
+          # Enable realm import on startup
+          - name: KEYCLOAK_EXTRA_ARGS
+            value: "--import-realm"
+
+        # Pod annotations for monitoring
+        podAnnotations:
+          prometheus.io/scrape: "true"
+          prometheus.io/port: "8080"
+          prometheus.io/path: "/metrics"
+
+        # Pod labels
+        podLabels:
+          app.kubernetes.io/component: identity-provider
+
+        # Affinity rules
+        affinity:
+          podAntiAffinity:
+            preferredDuringSchedulingIgnoredDuringExecution:
+              - weight: 100
+                podAffinityTerm:
+                  labelSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: keycloak
+                  topologyKey: kubernetes.io/hostname
+
+        # Service account
+        serviceAccount:
+          create: true
+          name: keycloak
+
+        # Network policy
+        networkPolicy:
+          enabled: true
+          allowExternal: true
+          additionalRules:
+            - ports:
+                - port: 8080
+                  protocol: TCP
+              from:
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: ingress-nginx
+            - ports:
+                - port: 8080
+                  protocol: TCP
+              from:
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: qawave
+                  podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: backend
+            - ports:
+                - port: 8080
+                  protocol: TCP
+              from:
+                - namespaceSelector:
+                    matchLabels:
+                      kubernetes.io/metadata.name: qawave
+                  podSelector:
+                    matchLabels:
+                      app.kubernetes.io/name: frontend
+
+        # Metrics
+        metrics:
+          enabled: true
+          serviceMonitor:
+            enabled: false
+            interval: 30s
+
+        # Volume mounts for realm import
+        extraVolumes:
+          - name: realm-config
+            configMap:
+              name: keycloak-realm-import
+
+        extraVolumeMounts:
+          - name: realm-config
+            mountPath: /opt/bitnami/keycloak/data/import
+            readOnly: true
+
+        # Init container to wait for PostgreSQL
+        initContainers:
+          - name: wait-for-postgresql
+            image: busybox:1.36
+            command:
+              - sh
+              - -c
+              - |
+                until nc -z postgresql.qawave.svc.cluster.local 5432; do
+                  echo "Waiting for PostgreSQL..."
+                  sleep 2
+                done
+                echo "PostgreSQL is ready"
   destination:
     server: https://kubernetes.default.svc
     namespace: qawave
@@ -56,34 +299,3 @@ spec:
       jsonPointers:
         - /data
   revisionHistoryLimit: 5
----
-# Alternative: Deploy Keycloak from repository values
-# Use this if ArgoCD cannot directly access Helm chart with repo values
-apiVersion: argoproj.io/v1alpha1
-kind: Application
-metadata:
-  name: qawave-keycloak-config
-  namespace: argocd
-  labels:
-    app: qawave
-    component: keycloak-config
-  annotations:
-    argocd.argoproj.io/sync-wave: "0"  # Deploy config first
-spec:
-  project: qawave
-  source:
-    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
-    targetRevision: main
-    path: infrastructure/kubernetes/base/auth/keycloak
-    directory:
-      recurse: false
-      exclude: "values.yaml|README.md|secrets.yaml*"
-  destination:
-    server: https://kubernetes.default.svc
-    namespace: qawave
-  syncPolicy:
-    automated:
-      prune: true
-      selfHeal: true
-    syncOptions:
-      - CreateNamespace=true

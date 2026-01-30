@@ -1,0 +1,337 @@
+# ConfigMap for Keycloak realm import on startup
+# This ConfigMap is mounted at /opt/bitnami/keycloak/data/import
+# and Keycloak imports it automatically with --import-realm flag
+#
+# The realm JSON defines:
+# - qawave realm with OIDC/OAuth2 configuration
+# - qawave-backend client (confidential, service account)
+# - qawave-frontend client (public, PKCE)
+# - Roles: admin, tester, viewer (hierarchical)
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: keycloak-realm-import
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: realm-config
+    app.kubernetes.io/part-of: qawave
+data:
+  qawave-realm.json: |
+    {
+      "id": "qawave",
+      "realm": "qawave",
+      "displayName": "QAWave",
+      "displayNameHtml": "<div class=\"kc-logo-text\"><span>QAWave</span></div>",
+      "enabled": true,
+      "sslRequired": "external",
+      "registrationAllowed": false,
+      "loginWithEmailAllowed": true,
+      "duplicateEmailsAllowed": false,
+      "resetPasswordAllowed": true,
+      "editUsernameAllowed": false,
+      "bruteForceProtected": true,
+      "permanentLockout": false,
+      "maxFailureWaitSeconds": 900,
+      "minimumQuickLoginWaitSeconds": 60,
+      "waitIncrementSeconds": 60,
+      "quickLoginCheckMilliSeconds": 1000,
+      "maxDeltaTimeSeconds": 43200,
+      "failureFactor": 5,
+      "defaultRole": {
+        "id": "qawave-default-roles",
+        "name": "default-roles-qawave",
+        "description": "Default roles for QAWave realm",
+        "composite": true,
+        "clientRole": false,
+        "containerId": "qawave"
+      },
+      "roles": {
+        "realm": [
+          {
+            "id": "admin",
+            "name": "admin",
+            "description": "Full administrative access to QAWave",
+            "composite": true,
+            "composites": {
+              "realm": ["tester", "viewer"]
+            },
+            "clientRole": false,
+            "containerId": "qawave",
+            "attributes": {}
+          },
+          {
+            "id": "tester",
+            "name": "tester",
+            "description": "Can create and run tests, view results",
+            "composite": true,
+            "composites": {
+              "realm": ["viewer"]
+            },
+            "clientRole": false,
+            "containerId": "qawave",
+            "attributes": {}
+          },
+          {
+            "id": "viewer",
+            "name": "viewer",
+            "description": "Read-only access to test results and reports",
+            "composite": false,
+            "clientRole": false,
+            "containerId": "qawave",
+            "attributes": {}
+          }
+        ],
+        "client": {
+          "qawave-backend": [
+            {
+              "id": "service-account",
+              "name": "service-account",
+              "description": "Service account role for backend",
+              "composite": false,
+              "clientRole": true,
+              "containerId": "qawave-backend"
+            }
+          ],
+          "qawave-frontend": []
+        }
+      },
+      "clients": [
+        {
+          "id": "qawave-backend",
+          "clientId": "qawave-backend",
+          "name": "QAWave Backend API",
+          "description": "Backend API service client (confidential)",
+          "enabled": true,
+          "alwaysDisplayInConsole": false,
+          "clientAuthenticatorType": "client-secret",
+          "redirectUris": [],
+          "webOrigins": [],
+          "notBefore": 0,
+          "bearerOnly": false,
+          "consentRequired": false,
+          "standardFlowEnabled": false,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": false,
+          "serviceAccountsEnabled": true,
+          "publicClient": false,
+          "frontchannelLogout": true,
+          "protocol": "openid-connect",
+          "attributes": {
+            "access.token.lifespan": "300",
+            "oauth2.device.authorization.grant.enabled": "false",
+            "backchannel.logout.session.required": "true",
+            "backchannel.logout.revoke.offline.tokens": "false"
+          },
+          "authenticationFlowBindingOverrides": {},
+          "fullScopeAllowed": true,
+          "nodeReRegistrationTimeout": -1,
+          "defaultClientScopes": [
+            "web-origins",
+            "acr",
+            "profile",
+            "roles",
+            "email"
+          ],
+          "optionalClientScopes": [
+            "address",
+            "phone",
+            "offline_access",
+            "microprofile-jwt"
+          ]
+        },
+        {
+          "id": "qawave-frontend",
+          "clientId": "qawave-frontend",
+          "name": "QAWave Frontend Application",
+          "description": "Frontend SPA client (public, PKCE)",
+          "enabled": true,
+          "alwaysDisplayInConsole": false,
+          "clientAuthenticatorType": "client-secret",
+          "redirectUris": [
+            "http://localhost:3000/*",
+            "http://localhost:5173/*",
+            "https://qawave.local/*",
+            "https://app.qawave.local/*",
+            "https://staging.qawave.io/*"
+          ],
+          "webOrigins": [
+            "http://localhost:3000",
+            "http://localhost:5173",
+            "https://qawave.local",
+            "https://app.qawave.local",
+            "https://staging.qawave.io"
+          ],
+          "notBefore": 0,
+          "bearerOnly": false,
+          "consentRequired": false,
+          "standardFlowEnabled": true,
+          "implicitFlowEnabled": false,
+          "directAccessGrantsEnabled": false,
+          "serviceAccountsEnabled": false,
+          "publicClient": true,
+          "frontchannelLogout": true,
+          "protocol": "openid-connect",
+          "attributes": {
+            "access.token.lifespan": "300",
+            "pkce.code.challenge.method": "S256",
+            "post.logout.redirect.uris": "http://localhost:3000/*##http://localhost:5173/*##https://qawave.local/*##https://app.qawave.local/*##https://staging.qawave.io/*",
+            "oauth2.device.authorization.grant.enabled": "false",
+            "backchannel.logout.session.required": "true",
+            "backchannel.logout.revoke.offline.tokens": "false"
+          },
+          "authenticationFlowBindingOverrides": {},
+          "fullScopeAllowed": true,
+          "nodeReRegistrationTimeout": -1,
+          "defaultClientScopes": [
+            "web-origins",
+            "acr",
+            "profile",
+            "roles",
+            "email"
+          ],
+          "optionalClientScopes": [
+            "address",
+            "phone",
+            "offline_access",
+            "microprofile-jwt"
+          ]
+        }
+      ],
+      "clientScopes": [
+        {
+          "id": "qawave-api",
+          "name": "qawave-api",
+          "description": "QAWave API scope",
+          "protocol": "openid-connect",
+          "attributes": {
+            "include.in.token.scope": "true",
+            "display.on.consent.screen": "true",
+            "consent.screen.text": "Access to QAWave API"
+          },
+          "protocolMappers": [
+            {
+              "id": "qawave-roles-mapper",
+              "name": "qawave-roles",
+              "protocol": "openid-connect",
+              "protocolMapper": "oidc-usermodel-realm-role-mapper",
+              "consentRequired": false,
+              "config": {
+                "multivalued": "true",
+                "userinfo.token.claim": "true",
+                "id.token.claim": "true",
+                "access.token.claim": "true",
+                "claim.name": "roles",
+                "jsonType.label": "String"
+              }
+            }
+          ]
+        }
+      ],
+      "defaultDefaultClientScopes": [
+        "role_list",
+        "profile",
+        "email",
+        "roles",
+        "web-origins",
+        "acr"
+      ],
+      "defaultOptionalClientScopes": [
+        "offline_access",
+        "address",
+        "phone",
+        "microprofile-jwt"
+      ],
+      "browserSecurityHeaders": {
+        "contentSecurityPolicyReportOnly": "",
+        "xContentTypeOptions": "nosniff",
+        "referrerPolicy": "no-referrer",
+        "xRobotsTag": "none",
+        "xFrameOptions": "SAMEORIGIN",
+        "contentSecurityPolicy": "frame-src 'self'; frame-ancestors 'self'; object-src 'none';",
+        "xXSSProtection": "1; mode=block",
+        "strictTransportSecurity": "max-age=31536000; includeSubDomains"
+      },
+      "smtpServer": {},
+      "loginTheme": "keycloak",
+      "accountTheme": "keycloak.v2",
+      "adminTheme": "keycloak.v2",
+      "emailTheme": "keycloak",
+      "eventsEnabled": true,
+      "eventsExpiration": 604800,
+      "eventsListeners": [
+        "jboss-logging"
+      ],
+      "enabledEventTypes": [
+        "LOGIN",
+        "LOGIN_ERROR",
+        "LOGOUT",
+        "LOGOUT_ERROR",
+        "REGISTER",
+        "REGISTER_ERROR",
+        "CODE_TO_TOKEN",
+        "CODE_TO_TOKEN_ERROR",
+        "CLIENT_LOGIN",
+        "CLIENT_LOGIN_ERROR",
+        "REFRESH_TOKEN",
+        "REFRESH_TOKEN_ERROR",
+        "REVOKE_GRANT",
+        "REVOKE_GRANT_ERROR",
+        "UPDATE_EMAIL",
+        "UPDATE_PROFILE",
+        "UPDATE_PASSWORD",
+        "UPDATE_TOTP",
+        "VERIFY_EMAIL",
+        "REMOVE_TOTP",
+        "SEND_RESET_PASSWORD",
+        "RESET_PASSWORD",
+        "RESET_PASSWORD_ERROR",
+        "IMPERSONATE",
+        "CUSTOM_REQUIRED_ACTION"
+      ],
+      "adminEventsEnabled": true,
+      "adminEventsDetailsEnabled": true,
+      "internationalizationEnabled": true,
+      "supportedLocales": [
+        "en",
+        "cs"
+      ],
+      "defaultLocale": "en",
+      "accessTokenLifespan": 300,
+      "accessTokenLifespanForImplicitFlow": 300,
+      "ssoSessionIdleTimeout": 1800,
+      "ssoSessionMaxLifespan": 36000,
+      "ssoSessionIdleTimeoutRememberMe": 0,
+      "ssoSessionMaxLifespanRememberMe": 0,
+      "offlineSessionIdleTimeout": 2592000,
+      "offlineSessionMaxLifespanEnabled": false,
+      "offlineSessionMaxLifespan": 5184000,
+      "clientSessionIdleTimeout": 0,
+      "clientSessionMaxLifespan": 0,
+      "clientOfflineSessionIdleTimeout": 0,
+      "clientOfflineSessionMaxLifespan": 0,
+      "accessCodeLifespan": 60,
+      "accessCodeLifespanUserAction": 300,
+      "accessCodeLifespanLogin": 1800,
+      "actionTokenGeneratedByAdminLifespan": 43200,
+      "actionTokenGeneratedByUserLifespan": 300,
+      "oauth2DeviceCodeLifespan": 600,
+      "oauth2DevicePollingInterval": 5,
+      "passwordPolicy": "length(8) and digits(1) and upperCase(1) and specialChars(1) and notUsername",
+      "requiredCredentials": [
+        "password"
+      ],
+      "otpPolicyType": "totp",
+      "otpPolicyAlgorithm": "HmacSHA1",
+      "otpPolicyInitialCounter": 0,
+      "otpPolicyDigits": 6,
+      "otpPolicyLookAheadWindow": 1,
+      "otpPolicyPeriod": 30,
+      "otpPolicyCodeReusable": false,
+      "otpSupportedApplications": [
+        "totpAppGoogleName",
+        "totpAppMicrosoftAuthenticatorName",
+        "totpAppFreeOTPName"
+      ]
+    }
