@@ -2,7 +2,6 @@ package com.qawave.infrastructure.security
 
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
-import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 
 /**
@@ -10,10 +9,10 @@ import org.springframework.security.oauth2.server.resource.authentication.JwtAut
  */
 object SecurityUtils {
     /**
-     * Get the current authenticated user details from the security context.
-     * Returns null if not authenticated or if authentication is not JWT-based.
+     * Get the current user ID from the security context.
+     * Returns null if not authenticated.
      */
-    suspend fun getCurrentUser(): JwtUserDetails? {
+    suspend fun getCurrentUserId(): String? {
         val context =
             ReactiveSecurityContextHolder.getContext().awaitFirstOrNull()
                 ?: return null
@@ -23,18 +22,10 @@ object SecurityUtils {
                 ?: return null
 
         if (authentication !is JwtAuthenticationToken) {
-            return null
+            return authentication.name
         }
 
-        return JwtUserDetails.fromJwt(authentication.token, authentication.authorities)
-    }
-
-    /**
-     * Get the current user ID from the security context.
-     * Returns null if not authenticated.
-     */
-    suspend fun getCurrentUserId(): String? {
-        return getCurrentUser()?.userId
+        return authentication.token.getClaimAsString("sub")
     }
 
     /**
@@ -42,7 +33,19 @@ object SecurityUtils {
      * Returns null if not authenticated.
      */
     suspend fun getCurrentUsername(): String? {
-        return getCurrentUser()?.username
+        val context =
+            ReactiveSecurityContextHolder.getContext().awaitFirstOrNull()
+                ?: return null
+
+        val authentication =
+            context.authentication
+                ?: return null
+
+        if (authentication !is JwtAuthenticationToken) {
+            return authentication.name
+        }
+
+        return authentication.token.getClaimAsString("preferred_username")
     }
 
     /**
@@ -50,15 +53,15 @@ object SecurityUtils {
      * Returns false if not authenticated.
      */
     suspend fun hasRole(role: String): Boolean {
-        return getCurrentUser()?.hasRole(role) ?: false
-    }
+        val context =
+            ReactiveSecurityContextHolder.getContext().awaitFirstOrNull()
+                ?: return false
 
-    /**
-     * Check if the current user has any of the specified roles.
-     * Returns false if not authenticated.
-     */
-    suspend fun hasAnyRole(vararg roles: String): Boolean {
-        return getCurrentUser()?.hasAnyRole(*roles) ?: false
+        val authentication =
+            context.authentication
+                ?: return false
+
+        return authentication.authorities.any { it.authority == "ROLE_$role" }
     }
 
     /**

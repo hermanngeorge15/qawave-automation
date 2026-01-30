@@ -25,7 +25,7 @@ import reactor.core.publisher.Mono
  * - Enables OAuth2 Resource Server with JWT validation
  * - Configures public and protected endpoints
  * - Extracts roles from Keycloak JWT tokens
- * - Configures CORS for frontend access
+ * - Enables method-level security with @PreAuthorize
  */
 @Configuration
 @EnableWebFluxSecurity
@@ -33,8 +33,6 @@ import reactor.core.publisher.Mono
 class SecurityConfig(
     @Value("\${qawave.security.enabled:true}")
     private val securityEnabled: Boolean,
-    private val authenticationEntryPoint: JwtAuthenticationEntryPoint,
-    private val accessDeniedHandler: JwtAccessDeniedHandler,
 ) {
     private val logger = LoggerFactory.getLogger(SecurityConfig::class.java)
 
@@ -98,11 +96,6 @@ class SecurityConfig(
                 oauth2.jwt { jwt ->
                     jwt.jwtAuthenticationConverter(jwtAuthenticationConverter())
                 }
-                oauth2.authenticationEntryPoint(authenticationEntryPoint)
-            }
-            .exceptionHandling { exceptions ->
-                exceptions.authenticationEntryPoint(authenticationEntryPoint)
-                exceptions.accessDeniedHandler(accessDeniedHandler)
             }
             .build()
     }

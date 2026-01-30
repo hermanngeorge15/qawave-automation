@@ -4,6 +4,8 @@ import com.qawave.application.service.*
 import com.qawave.domain.model.QaPackageConfig
 import com.qawave.domain.model.QaPackageId
 import com.qawave.domain.model.QaPackageStatus
+import com.qawave.infrastructure.security.Roles
+import com.qawave.infrastructure.security.SecurityUtils
 import com.qawave.presentation.dto.request.CreateQaPackageRequest
 import com.qawave.presentation.dto.request.UpdateQaPackageRequest
 import com.qawave.presentation.dto.response.ErrorResponse
@@ -20,6 +22,7 @@ import jakarta.validation.Valid
 import org.slf4j.LoggerFactory
 import org.springframework.http.HttpStatus
 import org.springframework.http.ResponseEntity
+import org.springframework.security.access.prepost.PreAuthorize
 import org.springframework.web.bind.annotation.*
 import java.util.UUID
 
@@ -36,9 +39,10 @@ class QaPackageController(
     private val logger = LoggerFactory.getLogger(QaPackageController::class.java)
 
     @PostMapping
+    @PreAuthorize(Roles.CAN_CREATE)
     @Operation(
         summary = "Create a new QA package",
-        description = "Creates a new QA package with the given configuration",
+        description = "Creates a new QA package with the given configuration. Requires ADMIN or TESTER role.",
     )
     @ApiResponses(
         ApiResponse(responseCode = "201", description = "Package created successfully"),
@@ -47,12 +51,13 @@ class QaPackageController(
             description = "Invalid request",
             content = [Content(schema = Schema(implementation = ErrorResponse::class))],
         ),
+        ApiResponse(responseCode = "403", description = "Insufficient permissions"),
     )
     suspend fun createPackage(
         @Valid @RequestBody request: CreateQaPackageRequest,
-        @RequestHeader("X-User-Id", required = false) userId: String?,
     ): ResponseEntity<QaPackageResponse> {
-        logger.info("Creating QA package: name={}", request.name)
+        val userId = SecurityUtils.getCurrentUserId() ?: "anonymous"
+        logger.info("Creating QA package: name={}, user={}", request.name, userId)
 
         val command =
             CreateQaPackageCommand(
@@ -83,9 +88,14 @@ class QaPackageController(
     }
 
     @GetMapping("/{id}")
-    @Operation(summary = "Get a QA package by ID", description = "Retrieves a QA package by its unique identifier")
+    @PreAuthorize(Roles.CAN_READ)
+    @Operation(
+        summary = "Get a QA package by ID",
+        description = "Retrieves a QA package by its unique identifier. Requires any authenticated role.",
+    )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "Package found"),
+        ApiResponse(responseCode = "403", description = "Insufficient permissions"),
         ApiResponse(
             responseCode = "404",
             description = "Package not found",
@@ -103,9 +113,14 @@ class QaPackageController(
     }
 
     @GetMapping
-    @Operation(summary = "List all QA packages", description = "Retrieves a paginated list of all QA packages")
+    @PreAuthorize(Roles.CAN_READ)
+    @Operation(
+        summary = "List all QA packages",
+        description = "Retrieves a paginated list of all QA packages. Requires any authenticated role.",
+    )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "Packages retrieved successfully"),
+        ApiResponse(responseCode = "403", description = "Insufficient permissions"),
     )
     suspend fun listPackages(
         @Parameter(description = "Page number (0-indexed)") @RequestParam(defaultValue = "0") page: Int,
@@ -142,9 +157,14 @@ class QaPackageController(
     }
 
     @PutMapping("/{id}")
-    @Operation(summary = "Update a QA package", description = "Updates an existing QA package")
+    @PreAuthorize(Roles.CAN_UPDATE_OWNED)
+    @Operation(
+        summary = "Update a QA package",
+        description = "Updates an existing QA package. Requires ADMIN role or TESTER role with ownership.",
+    )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "Package updated successfully"),
+        ApiResponse(responseCode = "403", description = "Insufficient permissions"),
         ApiResponse(
             responseCode = "404",
             description = "Package not found",
@@ -187,7 +207,11 @@ class QaPackageController(
     }
 
     @PatchMapping("/{id}/status")
-    @Operation(summary = "Update package status", description = "Updates the status of a QA package")
+    @PreAuthorize(Roles.CAN_UPDATE_OWNED)
+    @Operation(
+        summary = "Update package status",
+        description = "Updates the status of a QA package. Requires ADMIN role or TESTER role with ownership.",
+    )
     @ApiResponses(
         ApiResponse(responseCode = "200", description = "Status updated successfully"),
         ApiResponse(
@@ -195,6 +219,7 @@ class QaPackageController(
             description = "Invalid status transition",
             content = [Content(schema = Schema(implementation = ErrorResponse::class))],
         ),
+        ApiResponse(responseCode = "403", description = "Insufficient permissions"),
         ApiResponse(
             responseCode = "404",
             description = "Package not found",
@@ -219,9 +244,14 @@ class QaPackageController(
     }
 
     @DeleteMapping("/{id}")
-    @Operation(summary = "Delete a QA package", description = "Deletes a QA package and all related data")
+    @PreAuthorize(Roles.CAN_DELETE_OWNED)
+    @Operation(
+        summary = "Delete a QA package",
+        description = "Deletes a QA package and all related data. Requires ADMIN role or ownership.",
+    )
     @ApiResponses(
         ApiResponse(responseCode = "204", description = "Package deleted successfully"),
+        ApiResponse(responseCode = "403", description = "Insufficient permissions"),
         ApiResponse(responseCode = "404", description = "Package not found"),
     )
     suspend fun deletePackage(
@@ -236,7 +266,11 @@ class QaPackageController(
     }
 
     @GetMapping("/count")
-    @Operation(summary = "Get package count", description = "Returns the total number of packages")
+    @PreAuthorize(Roles.CAN_READ)
+    @Operation(
+        summary = "Get package count",
+        description = "Returns the total number of packages. Requires any authenticated role.",
+    )
     suspend fun getCount(
         @Parameter(description = "Filter by status") @RequestParam(required = false) status: String?,
     ): ResponseEntity<CountResponse> {
