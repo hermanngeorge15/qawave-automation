@@ -11,6 +11,7 @@
 import { Route as rootRouteImport } from './routes/__root'
 import { Route as AppRouteImport } from './routes/_app'
 import { Route as AppIndexRouteImport } from './routes/_app/index'
+import { Route as AppUnauthorizedRouteImport } from './routes/_app/unauthorized'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppScenariosRouteImport } from './routes/_app/scenarios'
 import { Route as AppPackagesRouteImport } from './routes/_app/packages'
@@ -25,6 +26,11 @@ const AppRoute = AppRouteImport.update({
 const AppIndexRoute = AppIndexRouteImport.update({
   id: '/',
   path: '/',
+  getParentRoute: () => AppRoute,
+} as any)
+const AppUnauthorizedRoute = AppUnauthorizedRouteImport.update({
+  id: '/unauthorized',
+  path: '/unauthorized',
   getParentRoute: () => AppRoute,
 } as any)
 const AppSettingsRoute = AppSettingsRouteImport.update({
@@ -63,6 +69,7 @@ export interface FileRoutesByFullPath {
   '/packages': typeof AppPackagesRouteWithChildren
   '/scenarios': typeof AppScenariosRoute
   '/settings': typeof AppSettingsRoute
+  '/unauthorized': typeof AppUnauthorizedRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/packages/new': typeof AppPackagesNewRoute
   '/runs/$runId': typeof AppRunsRunIdRoute
@@ -71,6 +78,7 @@ export interface FileRoutesByTo {
   '/packages': typeof AppPackagesRouteWithChildren
   '/scenarios': typeof AppScenariosRoute
   '/settings': typeof AppSettingsRoute
+  '/unauthorized': typeof AppUnauthorizedRoute
   '/': typeof AppIndexRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/packages/new': typeof AppPackagesNewRoute
@@ -82,6 +90,7 @@ export interface FileRoutesById {
   '/_app/packages': typeof AppPackagesRouteWithChildren
   '/_app/scenarios': typeof AppScenariosRoute
   '/_app/settings': typeof AppSettingsRoute
+  '/_app/unauthorized': typeof AppUnauthorizedRoute
   '/_app/': typeof AppIndexRoute
   '/_app/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/_app/packages/new': typeof AppPackagesNewRoute
@@ -94,6 +103,7 @@ export interface FileRouteTypes {
     | '/packages'
     | '/scenarios'
     | '/settings'
+    | '/unauthorized'
     | '/packages/$packageId'
     | '/packages/new'
     | '/runs/$runId'
@@ -102,6 +112,7 @@ export interface FileRouteTypes {
     | '/packages'
     | '/scenarios'
     | '/settings'
+    | '/unauthorized'
     | '/'
     | '/packages/$packageId'
     | '/packages/new'
@@ -112,6 +123,7 @@ export interface FileRouteTypes {
     | '/_app/packages'
     | '/_app/scenarios'
     | '/_app/settings'
+    | '/_app/unauthorized'
     | '/_app/'
     | '/_app/packages/$packageId'
     | '/_app/packages/new'
@@ -136,6 +148,13 @@ declare module '@tanstack/react-router' {
       path: '/'
       fullPath: '/'
       preLoaderRoute: typeof AppIndexRouteImport
+      parentRoute: typeof AppRoute
+    }
+    '/_app/unauthorized': {
+      id: '/_app/unauthorized'
+      path: '/unauthorized'
+      fullPath: '/unauthorized'
+      preLoaderRoute: typeof AppUnauthorizedRouteImport
       parentRoute: typeof AppRoute
     }
     '/_app/settings': {
@@ -201,6 +220,7 @@ interface AppRouteChildren {
   AppPackagesRoute: typeof AppPackagesRouteWithChildren
   AppScenariosRoute: typeof AppScenariosRoute
   AppSettingsRoute: typeof AppSettingsRoute
+  AppUnauthorizedRoute: typeof AppUnauthorizedRoute
   AppIndexRoute: typeof AppIndexRoute
   AppRunsRunIdRoute: typeof AppRunsRunIdRoute
 }
@@ -209,6 +229,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppPackagesRoute: AppPackagesRouteWithChildren,
   AppScenariosRoute: AppScenariosRoute,
   AppSettingsRoute: AppSettingsRoute,
+  AppUnauthorizedRoute: AppUnauthorizedRoute,
   AppIndexRoute: AppIndexRoute,
   AppRunsRunIdRoute: AppRunsRunIdRoute,
 }
