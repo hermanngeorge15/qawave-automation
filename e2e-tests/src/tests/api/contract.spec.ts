@@ -4,6 +4,15 @@ import { ScenariosApi, Scenario } from '../../api/scenarios.api';
 import { testData } from '../../fixtures/testData';
 
 /**
+ * Error response type for API error handling
+ */
+interface ErrorResponse {
+  message?: string;
+  error?: string;
+  errors?: unknown[];
+}
+
+/**
  * API Contract Tests
  * These tests validate that API responses conform to expected schema contracts
  *
@@ -209,9 +218,10 @@ test.describe('API Contract Tests @api @contract', () => {
       expect(response.status).toBe(404);
 
       // Error response should have message or error field
+      const errorBody = response.body as unknown as ErrorResponse;
       const hasErrorField =
-        response.body.message !== undefined ||
-        response.body.error !== undefined;
+        errorBody.message !== undefined ||
+        errorBody.error !== undefined;
       expect(hasErrorField).toBe(true);
     });
 
@@ -221,10 +231,11 @@ test.describe('API Contract Tests @api @contract', () => {
       expect([400, 422]).toContain(response.status);
 
       // Should have some error information
+      const errorBody = response.body as unknown as ErrorResponse;
       const hasErrorInfo =
-        response.body.message !== undefined ||
-        response.body.error !== undefined ||
-        response.body.errors !== undefined;
+        errorBody.message !== undefined ||
+        errorBody.error !== undefined ||
+        errorBody.errors !== undefined;
       expect(hasErrorInfo).toBe(true);
     });
 
