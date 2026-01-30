@@ -1,0 +1,18 @@
+# PostgreSQL Backup Resources
+# Provides automated database backup to S3-compatible storage
+#
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: qawave
+
+resources:
+  - backup-cronjob.yaml
+  - backup-configmap.yaml
+  - backup-secrets.yaml.example
+  - restore-job.yaml
+
+commonLabels:
+  app.kubernetes.io/name: postgresql-backup
+  app.kubernetes.io/component: backup
+  app.kubernetes.io/part-of: qawave

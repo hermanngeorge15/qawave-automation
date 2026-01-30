@@ -1,0 +1,255 @@
+# PostgreSQL Restore Job Template
+# Use this to restore from a specific backup file
+#
+# Usage:
+#   1. Find the backup file: aws s3 ls s3://qawave-backups/postgresql/daily/
+#   2. Update BACKUP_FILE below with the filename
+#   3. Apply: kubectl apply -f restore-job.yaml
+#   4. Monitor: kubectl logs -f job/postgresql-restore -n qawave
+#
+# WARNING: This will REPLACE the current database contents!
+# Make sure to create a backup of current data before restoring.
+#
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-restore
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: postgresql-restore
+    app.kubernetes.io/component: restore
+spec:
+  # No automatic retries - restore should be manually verified
+  backoffLimit: 0
+
+  # TTL for cleanup
+  ttlSecondsAfterFinished: 3600
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgresql-restore
+        app.kubernetes.io/component: restore-job
+    spec:
+      restartPolicy: Never
+
+      securityContext:
+        runAsNonRoot: true
+        runAsUser: 1000
+        fsGroup: 1000
+
+      containers:
+        - name: restore
+          image: postgres:16-alpine
+
+          securityContext:
+            allowPrivilegeEscalation: false
+            readOnlyRootFilesystem: false
+            capabilities:
+              drop:
+                - ALL
+
+          resources:
+            requests:
+              cpu: 200m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+          envFrom:
+            - configMapRef:
+                name: postgresql-backup-config
+            - secretRef:
+                name: postgresql-backup-secrets
+
+          env:
+            # PostgreSQL connection
+            - name: PGHOST
+              value: postgresql.qawave.svc.cluster.local
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: qawave
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secrets
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secrets
+                  key: password
+
+            # IMPORTANT: Specify the backup file to restore
+            # Example: qawave_20260130_020000.dump
+            - name: BACKUP_FILE
+              value: "SPECIFY_BACKUP_FILENAME_HERE"
+
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              # Validate backup file is specified
+              if [ "${BACKUP_FILE}" = "SPECIFY_BACKUP_FILENAME_HERE" ]; then
+                echo "ERROR: BACKUP_FILE must be specified"
+                echo "Edit the Job and set BACKUP_FILE to the backup filename"
+                exit 1
+              fi
+
+              # Install AWS CLI
+              apk add --no-cache aws-cli
+
+              echo "Starting restore from: ${BACKUP_FILE}"
+              echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+              # Download backup from S3
+              echo "Downloading backup from S3..."
+              aws s3 cp "s3://${S3_BUCKET}/${S3_PREFIX}${BACKUP_FILE}" "/tmp/${BACKUP_FILE}" \
+                --endpoint-url "${S3_ENDPOINT}"
+
+              # Get file size
+              BACKUP_SIZE=$(stat -c%s "/tmp/${BACKUP_FILE}" 2>/dev/null || stat -f%z "/tmp/${BACKUP_FILE}")
+              echo "Backup size: ${BACKUP_SIZE} bytes"
+
+              # Verify backup file
+              echo "Verifying backup file..."
+              pg_restore --list "/tmp/${BACKUP_FILE}" > /tmp/restore_list.txt
+              echo "Backup contains $(wc -l < /tmp/restore_list.txt) objects"
+
+              # Disconnect all users before restore
+              echo "Disconnecting active sessions..."
+              psql -c "SELECT pg_terminate_backend(pid) FROM pg_stat_activity WHERE datname = '${PGDATABASE}' AND pid <> pg_backend_pid();" || true
+
+              # Perform restore
+              # --clean: Drop database objects before recreating them
+              # --if-exists: Don't error if objects don't exist
+              # --no-owner: Don't restore ownership
+              # --no-privileges: Don't restore privileges
+              echo "Restoring database..."
+              pg_restore \
+                --clean \
+                --if-exists \
+                --no-owner \
+                --no-privileges \
+                --verbose \
+                --dbname="${PGDATABASE}" \
+                "/tmp/${BACKUP_FILE}"
+
+              # Verify restore
+              echo "Verifying restore..."
+              psql -c "SELECT COUNT(*) as table_count FROM information_schema.tables WHERE table_schema = 'public';"
+              psql -c "SELECT relname, n_live_tup FROM pg_stat_user_tables ORDER BY n_live_tup DESC LIMIT 5;"
+
+              # Cleanup
+              rm -f "/tmp/${BACKUP_FILE}" /tmp/restore_list.txt
+
+              echo "Restore completed successfully"
+              echo "Restored from: ${BACKUP_FILE}"
+              echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+
+          volumeMounts:
+            - name: tmp-volume
+              mountPath: /tmp
+
+      volumes:
+        - name: tmp-volume
+          emptyDir:
+            sizeLimit: 10Gi
+
+---
+# Verification Job - Run after restore to validate data integrity
+apiVersion: batch/v1
+kind: Job
+metadata:
+  name: postgresql-verify
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: postgresql-verify
+    app.kubernetes.io/component: verify
+spec:
+  backoffLimit: 0
+  ttlSecondsAfterFinished: 1800
+
+  template:
+    metadata:
+      labels:
+        app.kubernetes.io/name: postgresql-verify
+    spec:
+      restartPolicy: Never
+
+      containers:
+        - name: verify
+          image: postgres:16-alpine
+
+          env:
+            - name: PGHOST
+              value: postgresql.qawave.svc.cluster.local
+            - name: PGPORT
+              value: "5432"
+            - name: PGDATABASE
+              value: qawave
+            - name: PGUSER
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secrets
+                  key: username
+            - name: PGPASSWORD
+              valueFrom:
+                secretKeyRef:
+                  name: postgresql-secrets
+                  key: password
+
+          command:
+            - /bin/sh
+            - -c
+            - |
+              set -e
+
+              echo "Database Verification Report"
+              echo "============================"
+              echo "Timestamp: $(date -u +%Y-%m-%dT%H:%M:%SZ)"
+              echo ""
+
+              echo "1. Database Connection"
+              psql -c "SELECT version();" | head -2
+              echo ""
+
+              echo "2. Table Statistics"
+              psql -c "
+                SELECT
+                  schemaname,
+                  tablename,
+                  n_live_tup as rows,
+                  pg_size_pretty(pg_total_relation_size(schemaname||'.'||tablename)) as size
+                FROM pg_stat_user_tables
+                ORDER BY n_live_tup DESC;
+              "
+              echo ""
+
+              echo "3. Index Status"
+              psql -c "
+                SELECT
+                  schemaname,
+                  tablename,
+                  indexname,
+                  idx_scan as scans
+                FROM pg_stat_user_indexes
+                WHERE idx_scan > 0
+                ORDER BY idx_scan DESC
+                LIMIT 10;
+              "
+              echo ""
+
+              echo "4. Flyway Migration Status"
+              psql -c "SELECT version, description, installed_on FROM flyway_schema_history ORDER BY installed_on DESC LIMIT 5;" || echo "No Flyway history found"
+              echo ""
+
+              echo "5. Database Size"
+              psql -c "SELECT pg_size_pretty(pg_database_size('${PGDATABASE}')) as database_size;"
+              echo ""
+
+              echo "Verification Complete"

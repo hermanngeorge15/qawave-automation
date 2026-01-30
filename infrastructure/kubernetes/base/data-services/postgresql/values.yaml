@@ -123,8 +123,15 @@ service:
   ports:
     postgresql: 5432
 
-# Backup configuration (optional - requires external backup solution)
-# For production, consider:
-# - WAL-G for continuous backups
-# - pg_dump cronjob for logical backups
-# - CloudNativePG operator for advanced scenarios
+# Backup configuration
+# Automated backups are configured in ./backup/
+# See ./backup/README.md for:
+# - Daily pg_dump backups to S3 (CronJob)
+# - WAL checkpoint jobs every 6 hours
+# - Restore procedures and runbooks
+# - Recovery testing checklist
+#
+# To enable backups:
+#   cd backup && kubectl apply -k .
+#
+# RPO: 6 hours | RTO: 4 hours | Retention: 30 days

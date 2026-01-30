@@ -1,0 +1,32 @@
+# PostgreSQL Backup Configuration
+# Non-sensitive backup settings
+#
+apiVersion: v1
+kind: ConfigMap
+metadata:
+  name: postgresql-backup-config
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: postgresql-backup
+    app.kubernetes.io/component: config
+data:
+  # S3 Bucket Configuration
+  S3_BUCKET: "qawave-backups"
+  S3_PREFIX: "postgresql/daily/"
+  S3_ENDPOINT: "https://s3.eu-central-1.amazonaws.com"
+  S3_REGION: "eu-central-1"
+
+  # Backup Retention (informational - managed by S3 lifecycle)
+  RETENTION_DAYS: "30"
+
+  # Backup Settings
+  BACKUP_COMPRESSION: "9"
+  BACKUP_FORMAT: "custom"
+
+  # Alert Configuration
+  ALERT_ON_FAILURE: "true"
+  ALERT_EMAIL: "ops@qawave.io"
+
+  # Recovery Settings
+  RTO_HOURS: "4"
+  RPO_HOURS: "6"
