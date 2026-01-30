@@ -1,4 +1,9 @@
 spring:
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: http://localhost:8081/realms/qawave
   r2dbc:
     url: r2dbc:h2:mem:///testdb;DB_CLOSE_DELAY=-1
     username: sa
@@ -17,6 +22,10 @@ management:
     web:
       exposure:
         include: health,info
+
+qawave:
+  security:
+    enabled: false
 
 logging:
   level:
