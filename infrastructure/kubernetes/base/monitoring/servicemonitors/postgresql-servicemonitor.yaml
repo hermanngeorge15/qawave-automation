@@ -1,0 +1,89 @@
+# ServiceMonitor for PostgreSQL
+# Scrapes postgres_exporter metrics
+#
+# Note: Requires postgres_exporter sidecar or separate deployment
+# The exporter is typically deployed alongside PostgreSQL
+#
+# Expected metrics:
+#   - pg_stat_database_* (database statistics)
+#   - pg_stat_user_tables_* (table statistics)
+#   - pg_settings_* (configuration)
+#   - pg_stat_replication_* (replication status)
+#
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: postgresql
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: servicemonitor
+    app.kubernetes.io/part-of: qawave
+spec:
+  # Selector matches PostgreSQL service
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+
+  # Look in qawave namespace
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  # Endpoint configuration
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      scheme: http
+
+      # Relabeling
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_service_name]
+          targetLabel: service
+        - action: replace
+          targetLabel: application
+          replacement: postgresql
+
+  jobLabel: app.kubernetes.io/name
+
+---
+# PodMonitor for cases where PostgreSQL doesn't expose a metrics service
+# This scrapes directly from pod annotations
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: postgresql-pods
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: podmonitor
+    app.kubernetes.io/part-of: qawave
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - action: replace
+          targetLabel: application
+          replacement: postgresql

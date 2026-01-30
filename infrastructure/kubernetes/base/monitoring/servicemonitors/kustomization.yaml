@@ -1,0 +1,20 @@
+# Kustomization for QAWave ServiceMonitors
+# These ServiceMonitors tell Prometheus how to scrape metrics from QAWave services
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/part-of: qawave-monitoring
+    includeSelectors: false
+
+resources:
+  - backend-servicemonitor.yaml
+  - postgresql-servicemonitor.yaml
+  - redis-servicemonitor.yaml
+  - kafka-servicemonitor.yaml
+  - keycloak-servicemonitor.yaml

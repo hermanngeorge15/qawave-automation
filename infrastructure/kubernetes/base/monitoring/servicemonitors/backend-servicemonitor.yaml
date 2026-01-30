@@ -1,0 +1,63 @@
+# ServiceMonitor for QAWave Backend API
+# Scrapes Spring Boot Actuator metrics from /actuator/prometheus
+#
+# Expected metrics:
+#   - JVM metrics (memory, gc, threads)
+#   - HTTP server metrics (requests, latency)
+#   - Database connection pool metrics
+#   - Custom application metrics
+#
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: qawave-backend
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: qawave-backend
+    app.kubernetes.io/component: servicemonitor
+    app.kubernetes.io/part-of: qawave
+spec:
+  # Selector matches the backend service
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+      app.kubernetes.io/part-of: qawave
+
+  # Look for services in the qawave namespace
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  # Endpoint configuration
+  endpoints:
+    - port: http
+      path: /actuator/prometheus
+      interval: 30s
+      scrapeTimeout: 10s
+      scheme: http
+
+      # Relabeling to add useful labels
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_service_name]
+          targetLabel: service
+        - action: replace
+          targetLabel: application
+          replacement: qawave-backend
+
+      # Metric relabeling for optimization
+      metricRelabelings:
+        # Drop high-cardinality metrics if needed
+        - sourceLabels: [__name__]
+          regex: 'jvm_gc_pause_seconds_count|jvm_gc_pause_seconds_sum'
+          action: drop
+        # Keep all other metrics
+        - sourceLabels: [__name__]
+          regex: '.*'
+          action: keep
+
+  # Job label
+  jobLabel: app.kubernetes.io/name

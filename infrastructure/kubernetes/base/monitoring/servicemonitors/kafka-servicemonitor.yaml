@@ -1,0 +1,135 @@
+# ServiceMonitor for Apache Kafka
+# Scrapes JMX metrics via kafka_exporter or Strimzi metrics
+#
+# For Strimzi-managed Kafka:
+#   - Uses built-in Prometheus metrics export
+#
+# Expected metrics:
+#   - kafka_server_* (broker metrics)
+#   - kafka_controller_* (controller metrics)
+#   - kafka_network_* (network metrics)
+#   - kafka_log_* (log metrics)
+#   - kafka_consumer_* (consumer group metrics)
+#
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: kafka
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/component: servicemonitor
+    app.kubernetes.io/part-of: qawave
+spec:
+  # Selector matches Kafka service
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+
+  # Look in qawave namespace
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  # Endpoint configuration
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 15s
+      scheme: http
+
+      # Relabeling
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_service_name]
+          targetLabel: service
+        - action: replace
+          targetLabel: application
+          replacement: kafka
+
+      # Metric relabeling
+      metricRelabelings:
+        # Keep important Kafka metrics
+        - sourceLabels: [__name__]
+          regex: 'kafka_(server|controller|network|log|consumer|producer)_.*'
+          action: keep
+
+  jobLabel: app.kubernetes.io/name
+
+---
+# ServiceMonitor for Strimzi Kafka (if using Strimzi operator)
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: strimzi-kafka
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: strimzi-kafka
+    app.kubernetes.io/component: servicemonitor
+    app.kubernetes.io/part-of: qawave
+    strimzi.io/cluster: qawave-kafka
+spec:
+  # Selector for Strimzi-managed Kafka
+  selector:
+    matchLabels:
+      strimzi.io/kind: Kafka
+
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  endpoints:
+    - port: tcp-prometheus
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 15s
+
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - action: replace
+          targetLabel: application
+          replacement: strimzi-kafka
+
+  jobLabel: strimzi.io/cluster
+
+---
+# PodMonitor for Kafka brokers
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: kafka-brokers
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/component: podmonitor
+    app.kubernetes.io/part-of: qawave
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
+
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 15s
+
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - action: replace
+          targetLabel: application
+          replacement: kafka
