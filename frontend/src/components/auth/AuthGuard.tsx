@@ -1,26 +1,74 @@
 import type { ReactNode } from 'react'
-import { Navigate } from '@tanstack/react-router'
-import { useAuth } from '@/hooks'
+import { useLocation, useNavigate } from '@tanstack/react-router'
+import { useEffect } from 'react'
+import { useAuth } from '@/lib/auth'
 
 interface AuthGuardProps {
   children: ReactNode
-  redirectTo?: string
+  roles?: string[] | undefined
 }
 
-export function AuthGuard({ children, redirectTo = '/login' }: AuthGuardProps) {
-  const { isAuthenticated, isLoading } = useAuth()
+export function AuthGuard({ children, roles }: AuthGuardProps) {
+  const { isAuthenticated, isLoading, hasAnyRole, login } = useAuth()
+  const location = useLocation()
+  const navigate = useNavigate()
+
+  useEffect(() => {
+    if (!isLoading && !isAuthenticated) {
+      // Store the return URL in sessionStorage for after login
+      sessionStorage.setItem('returnUrl', location.pathname + location.search)
+      // Trigger Keycloak login
+      login()
+    }
+  }, [isLoading, isAuthenticated, location.pathname, location.search, login])
+
+  useEffect(() => {
+    if (!isLoading && isAuthenticated && roles && roles.length > 0 && !hasAnyRole(roles)) {
+      void navigate({ to: '/unauthorized' })
+    }
+  }, [isLoading, isAuthenticated, roles, hasAnyRole, navigate])
 
   if (isLoading) {
     return (
       <div className="auth-loading">
-        <p>Checking authentication...</p>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-secondary-400">Checking authentication...</p>
+        </div>
       </div>
     )
   }
 
   if (!isAuthenticated) {
-    return <Navigate to={redirectTo} />
+    // While redirecting to login
+    return (
+      <div className="auth-loading">
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-8 h-8 border-4 border-primary-500 border-t-transparent rounded-full animate-spin" />
+          <p className="text-secondary-400">Redirecting to login...</p>
+        </div>
+      </div>
+    )
+  }
+
+  // Check role-based access
+  if (roles && roles.length > 0 && !hasAnyRole(roles)) {
+    return null // Will redirect via useEffect
   }
 
   return <>{children}</>
+}
+
+// Higher-order component for protecting routes
+export function withAuthGuard<P extends object>(
+  WrappedComponent: React.ComponentType<P>,
+  roles?: string[]
+) {
+  return function ProtectedComponent(props: P) {
+    return (
+      <AuthGuard roles={roles}>
+        <WrappedComponent {...props} />
+      </AuthGuard>
+    )
+  }
 }
