@@ -24,6 +24,13 @@ spring:
       port: ${REDIS_PORT:6379}
       password: ${REDIS_PASSWORD:}
 
+  security:
+    oauth2:
+      resourceserver:
+        jwt:
+          issuer-uri: ${KEYCLOAK_ISSUER_URI:http://localhost:8081/realms/qawave}
+          jwk-set-uri: ${KEYCLOAK_JWK_SET_URI:http://localhost:8081/realms/qawave/protocol/openid-connect/certs}
+
   kafka:
     bootstrap-servers: ${KAFKA_BOOTSTRAP_SERVERS:localhost:9092}
     producer:
@@ -40,6 +47,8 @@ spring:
         spring.json.trusted.packages: com.qawave.infrastructure.messaging
 
 qawave:
+  security:
+    enabled: ${SECURITY_ENABLED:true}
   ai:
     provider: ${AI_PROVIDER:openai}
     api-key: ${AI_API_KEY:}
