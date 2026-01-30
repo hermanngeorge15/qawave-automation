@@ -1,0 +1,56 @@
+# HorizontalPodAutoscaler for Keycloak
+# Scales based on CPU and memory
+#
+# Note: Keycloak requires session affinity for HA
+# This HPA works with distributed caching (Infinispan)
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: keycloak-hpa
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: hpa
+    app.kubernetes.io/part-of: qawave
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: keycloak
+  minReplicas: 1  # Start with 1 for development
+  maxReplicas: 4
+
+  metrics:
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 75
+
+  behavior:
+    # Conservative scale up for auth service
+    scaleUp:
+      stabilizationWindowSeconds: 120
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 120
+      selectPolicy: Max
+
+    # Very conservative scale down
+    scaleDown:
+      stabilizationWindowSeconds: 600
+      policies:
+        - type: Pods
+          value: 1
+          periodSeconds: 300
+      selectPolicy: Min

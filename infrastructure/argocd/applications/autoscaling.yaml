@@ -1,0 +1,36 @@
+# ArgoCD Application for Autoscaling Resources
+# HPAs and PDBs for QAWave services
+
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qawave-autoscaling
+  namespace: argocd
+  labels:
+    app: qawave
+    component: autoscaling
+  annotations:
+    argocd.argoproj.io/sync-wave: "2"  # Deploy after main apps
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: qawave
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: infrastructure/kubernetes/base/autoscaling
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: qawave
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+    retry:
+      limit: 3
+      backoff:
+        duration: 5s
+        factor: 2
+        maxDuration: 1m

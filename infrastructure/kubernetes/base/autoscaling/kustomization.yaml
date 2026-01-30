@@ -1,0 +1,19 @@
+# Kustomization for Autoscaling Resources
+# HPAs and PDBs for QAWave services
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: qawave
+
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/part-of: qawave-autoscaling
+    includeSelectors: false
+
+resources:
+  - backend-hpa.yaml
+  - frontend-hpa.yaml
+  - keycloak-hpa.yaml
+  - pod-disruption-budgets.yaml
