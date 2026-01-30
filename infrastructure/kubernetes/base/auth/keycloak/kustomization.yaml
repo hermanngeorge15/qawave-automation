@@ -3,6 +3,11 @@
 #
 # Note: Keycloak is deployed using Helm, so this kustomization
 # primarily manages additional resources like secrets and configs
+#
+# Resources managed here:
+# - init-db-configmap.yaml: SQL script for database initialization
+# - realm-import-configmap.yaml: QAWave realm configuration for import
+# - sealed-secrets.yaml: Encrypted secrets (when created)
 
 apiVersion: kustomize.config.k8s.io/v1beta1
 kind: Kustomization
@@ -16,17 +21,13 @@ labels:
     includeSelectors: false
 
 resources:
-  # Add secrets.yaml here once created (or sealed-secrets.yaml)
-  # - secrets.yaml
+  # Database initialization script
   - init-db-configmap.yaml
+  # Realm configuration for automatic import
+  - realm-import-configmap.yaml
+  # Sealed secrets (uncomment after creating with kubeseal)
+  # - sealed-secrets.yaml
 
 # Common labels for all resources
 commonLabels:
   environment: production
-
-# Patches for environment-specific configuration
-# patches:
-#   - path: patches/production-values.yaml
-#     target:
-#       kind: HelmRelease
-#       name: keycloak
