@@ -1,0 +1,101 @@
+# ClusterIssuers for Let's Encrypt
+# Production and Staging issuers for TLS certificates
+#
+# Usage:
+#   Add annotation to Ingress:
+#     cert-manager.io/cluster-issuer: "letsencrypt-prod"
+#
+# Rate Limits (Let's Encrypt):
+#   - Staging: No rate limits (use for testing)
+#   - Production: 50 certificates/domain/week
+
+---
+# Let's Encrypt Production Issuer
+# Use for production deployments
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-prod
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/component: cluster-issuer
+spec:
+  acme:
+    # Production ACME server
+    server: https://acme-v02.api.letsencrypt.org/directory
+
+    # Email for certificate notifications
+    email: admin@qawave.io
+
+    # Secret to store ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-prod-account-key
+
+    # HTTP-01 challenge solver using nginx ingress
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+            podTemplate:
+              spec:
+                nodeSelector:
+                  kubernetes.io/os: linux
+
+---
+# Let's Encrypt Staging Issuer
+# Use for testing (no rate limits, but untrusted certs)
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: letsencrypt-staging
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/component: cluster-issuer
+spec:
+  acme:
+    # Staging ACME server (for testing)
+    server: https://acme-staging-v02.api.letsencrypt.org/directory
+
+    # Email for certificate notifications
+    email: admin@qawave.io
+
+    # Secret to store ACME account private key
+    privateKeySecretRef:
+      name: letsencrypt-staging-account-key
+
+    # HTTP-01 challenge solver
+    solvers:
+      - http01:
+          ingress:
+            ingressClassName: nginx
+            podTemplate:
+              spec:
+                nodeSelector:
+                  kubernetes.io/os: linux
+
+---
+# Self-signed issuer for internal certificates
+# Use for internal services that don't need public trust
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: selfsigned-issuer
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/component: cluster-issuer
+spec:
+  selfSigned: {}
+
+---
+# CA Issuer for internal PKI
+# Creates a CA that can issue certificates for internal services
+apiVersion: cert-manager.io/v1
+kind: ClusterIssuer
+metadata:
+  name: qawave-ca-issuer
+  labels:
+    app.kubernetes.io/name: cert-manager
+    app.kubernetes.io/component: cluster-issuer
+spec:
+  ca:
+    secretName: qawave-ca-key-pair

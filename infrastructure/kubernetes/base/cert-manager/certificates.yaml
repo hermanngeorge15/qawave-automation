@@ -1,0 +1,169 @@
+# TLS Certificates for QAWave domains
+# Managed by cert-manager with auto-renewal
+#
+# Certificate lifecycle:
+#   - Issued by Let's Encrypt
+#   - Auto-renewed 30 days before expiry
+#   - Stored as Kubernetes secrets
+
+---
+# Main QAWave wildcard certificate
+# Covers *.qawave.io and qawave.io
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: qawave-tls
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: qawave
+    app.kubernetes.io/component: tls-certificate
+spec:
+  # Secret where the certificate will be stored
+  secretName: qawave-tls
+
+  # Certificate duration (90 days for Let's Encrypt)
+  duration: 2160h  # 90 days
+
+  # Renew 30 days before expiry
+  renewBefore: 720h  # 30 days
+
+  # Use the production Let's Encrypt issuer
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+  # Private key configuration
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+    rotationPolicy: Always
+
+  # Subject alternative names (SANs)
+  dnsNames:
+    - qawave.io
+    - "*.qawave.io"
+    - app.qawave.io
+    - api.qawave.io
+    - auth.qawave.io
+    - grafana.qawave.io
+    - prometheus.qawave.io
+    - alertmanager.qawave.io
+    - argocd.qawave.io
+
+  # Usage constraints
+  usages:
+    - server auth
+    - client auth
+
+---
+# Staging environment certificate
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: qawave-staging-tls
+  namespace: qawave-staging
+  labels:
+    app.kubernetes.io/name: qawave
+    app.kubernetes.io/component: tls-certificate
+    environment: staging
+spec:
+  secretName: qawave-staging-tls
+
+  duration: 2160h
+  renewBefore: 720h
+
+  issuerRef:
+    name: letsencrypt-prod
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+
+  dnsNames:
+    - staging.qawave.io
+    - "*.staging.qawave.io"
+    - app.staging.qawave.io
+    - api.staging.qawave.io
+    - auth.staging.qawave.io
+
+  usages:
+    - server auth
+    - client auth
+
+---
+# Internal CA certificate
+# Root CA for internal service communication
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: qawave-ca
+  namespace: cert-manager
+  labels:
+    app.kubernetes.io/name: qawave
+    app.kubernetes.io/component: ca-certificate
+spec:
+  secretName: qawave-ca-key-pair
+
+  # CA certificate has longer duration
+  duration: 87600h  # 10 years
+  renewBefore: 8760h  # 1 year
+
+  # Self-signed root CA
+  issuerRef:
+    name: selfsigned-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+  # Mark as CA certificate
+  isCA: true
+
+  commonName: QAWave Internal CA
+
+  privateKey:
+    algorithm: ECDSA
+    size: 384
+
+  usages:
+    - cert sign
+    - crl sign
+
+---
+# Internal service certificate (example)
+# For internal mTLS between services
+apiVersion: cert-manager.io/v1
+kind: Certificate
+metadata:
+  name: backend-internal-tls
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/component: internal-tls
+spec:
+  secretName: backend-internal-tls
+
+  duration: 8760h  # 1 year
+  renewBefore: 720h  # 30 days
+
+  issuerRef:
+    name: qawave-ca-issuer
+    kind: ClusterIssuer
+    group: cert-manager.io
+
+  privateKey:
+    algorithm: ECDSA
+    size: 256
+
+  commonName: backend.qawave.svc.cluster.local
+
+  dnsNames:
+    - backend
+    - backend.qawave
+    - backend.qawave.svc
+    - backend.qawave.svc.cluster.local
+
+  usages:
+    - server auth
+    - client auth
