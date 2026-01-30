@@ -2,7 +2,6 @@ package com.qawave.infrastructure.security
 
 import kotlinx.coroutines.reactive.awaitFirstOrNull
 import org.springframework.security.core.context.ReactiveSecurityContextHolder
-import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationToken
 
 /**

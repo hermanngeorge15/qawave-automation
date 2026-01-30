@@ -88,6 +88,10 @@ qawave:
       max-idle: 8
       max-active: 16
     command-timeout: 5000
+  rate-limit:
+    enabled: ${RATE_LIMIT_ENABLED:true}
+    default-limit: 1000
+    default-window-seconds: 60
 
 management:
   endpoints:
