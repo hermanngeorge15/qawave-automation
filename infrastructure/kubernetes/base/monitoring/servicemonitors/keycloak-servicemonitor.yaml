@@ -1,0 +1,92 @@
+# ServiceMonitor for Keycloak Identity Server
+# Scrapes Quarkus/Micrometer metrics from /metrics endpoint
+#
+# Expected metrics:
+#   - keycloak_* (Keycloak specific)
+#   - http_server_* (HTTP server metrics)
+#   - jvm_* (JVM metrics)
+#   - process_* (Process metrics)
+#
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: keycloak
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: servicemonitor
+    app.kubernetes.io/part-of: qawave
+spec:
+  # Selector matches Keycloak service
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+
+  # Look in qawave namespace
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  # Endpoint configuration
+  endpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      scheme: http
+
+      # Relabeling
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_service_name]
+          targetLabel: service
+        - action: replace
+          targetLabel: application
+          replacement: keycloak
+
+      # Metric relabeling
+      metricRelabelings:
+        # Keep Keycloak and JVM metrics
+        - sourceLabels: [__name__]
+          regex: '(keycloak|http_server|jvm|process)_.*'
+          action: keep
+
+  jobLabel: app.kubernetes.io/name
+
+---
+# PodMonitor for Keycloak pods with annotations
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: keycloak-pods
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: podmonitor
+    app.kubernetes.io/part-of: qawave
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  podMetricsEndpoints:
+    - port: http
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - action: replace
+          targetLabel: application
+          replacement: keycloak

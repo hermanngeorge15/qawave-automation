@@ -1,0 +1,95 @@
+# ServiceMonitor for Redis
+# Scrapes redis_exporter metrics
+#
+# Note: Requires redis_exporter sidecar or separate deployment
+#
+# Expected metrics:
+#   - redis_commands_* (command statistics)
+#   - redis_connected_clients (client connections)
+#   - redis_memory_* (memory usage)
+#   - redis_keyspace_* (keyspace statistics)
+#   - redis_db_keys (keys per database)
+#
+apiVersion: monitoring.coreos.com/v1
+kind: ServiceMonitor
+metadata:
+  name: redis
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: servicemonitor
+    app.kubernetes.io/part-of: qawave
+spec:
+  # Selector matches Redis service
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+
+  # Look in qawave namespace
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  # Endpoint configuration
+  endpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+      scheme: http
+
+      # Relabeling
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - sourceLabels: [__meta_kubernetes_service_name]
+          targetLabel: service
+        - action: replace
+          targetLabel: application
+          replacement: redis
+
+      # Metric relabeling
+      metricRelabelings:
+        # Keep important Redis metrics
+        - sourceLabels: [__name__]
+          regex: 'redis_(commands_total|connected_clients|memory_used_bytes|keyspace_hits_total|keyspace_misses_total|db_keys|blocked_clients|evicted_keys_total|expired_keys_total|uptime_in_seconds)'
+          action: keep
+
+  jobLabel: app.kubernetes.io/name
+
+---
+# PodMonitor for Redis pods
+apiVersion: monitoring.coreos.com/v1
+kind: PodMonitor
+metadata:
+  name: redis-pods
+  namespace: monitoring
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: podmonitor
+    app.kubernetes.io/part-of: qawave
+spec:
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+
+  namespaceSelector:
+    matchNames:
+      - qawave
+
+  podMetricsEndpoints:
+    - port: metrics
+      path: /metrics
+      interval: 30s
+      scrapeTimeout: 10s
+
+      relabelings:
+        - sourceLabels: [__meta_kubernetes_namespace]
+          targetLabel: namespace
+        - sourceLabels: [__meta_kubernetes_pod_name]
+          targetLabel: pod
+        - action: replace
+          targetLabel: application
+          replacement: redis

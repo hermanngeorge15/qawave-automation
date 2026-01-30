@@ -1,0 +1,356 @@
+# ArgoCD Application for Monitoring Stack
+# Deploys kube-prometheus-stack with ServiceMonitors for QAWave
+#
+# Components:
+#   - Prometheus: Metrics collection and storage
+#   - Alertmanager: Alert routing and notification
+#   - Grafana: Visualization dashboards
+#   - Node Exporter: Host metrics
+#   - kube-state-metrics: Kubernetes state metrics
+#
+# Prerequisites:
+#   1. monitoring namespace must exist
+#   2. Storage class available for persistent volumes
+
+---
+# AppProject for monitoring (separate from application workloads)
+apiVersion: argoproj.io/v1alpha1
+kind: AppProject
+metadata:
+  name: monitoring
+  namespace: argocd
+spec:
+  description: Monitoring and Observability Stack
+  sourceRepos:
+    - 'https://prometheus-community.github.io/helm-charts'
+    - 'https://github.com/hermanngeorge15/qawave-automation.git'
+  destinations:
+    - namespace: monitoring
+      server: https://kubernetes.default.svc
+    - namespace: qawave
+      server: https://kubernetes.default.svc
+  clusterResourceWhitelist:
+    - group: ''
+      kind: Namespace
+    - group: apiextensions.k8s.io
+      kind: CustomResourceDefinition
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRole
+    - group: rbac.authorization.k8s.io
+      kind: ClusterRoleBinding
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+  namespaceResourceWhitelist:
+    - group: ''
+      kind: '*'
+    - group: apps
+      kind: '*'
+    - group: monitoring.coreos.com
+      kind: '*'
+    - group: networking.k8s.io
+      kind: '*'
+
+---
+# Deploy kube-prometheus-stack using Helm
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: kube-prometheus-stack
+  namespace: argocd
+  labels:
+    app: monitoring
+    component: prometheus
+  annotations:
+    argocd.argoproj.io/sync-wave: "0"
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: monitoring
+  source:
+    repoURL: https://prometheus-community.github.io/helm-charts
+    chart: kube-prometheus-stack
+    targetRevision: "67.*"
+    helm:
+      releaseName: kube-prometheus-stack
+      valuesObject:
+        # Global settings
+        global:
+          rbac:
+            create: true
+            pspEnabled: false
+
+        # Prometheus configuration
+        prometheus:
+          enabled: true
+          prometheusSpec:
+            # Retention configuration
+            retention: 15d
+            retentionSize: "45GB"
+
+            # Resource limits
+            resources:
+              requests:
+                cpu: 500m
+                memory: 2Gi
+              limits:
+                cpu: 2000m
+                memory: 4Gi
+
+            # Persistent storage
+            storageSpec:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 50Gi
+
+            # Scrape configuration
+            scrapeInterval: 30s
+            evaluationInterval: 30s
+
+            # Service discovery across namespaces
+            serviceMonitorSelectorNilUsesHelmValues: false
+            podMonitorSelectorNilUsesHelmValues: false
+            ruleSelectorNilUsesHelmValues: false
+
+            # Additional scrape configs for external targets
+            additionalScrapeConfigs: []
+
+            # Security context
+            securityContext:
+              runAsNonRoot: true
+              runAsUser: 1000
+              fsGroup: 2000
+
+            # Pod anti-affinity
+            affinity:
+              podAntiAffinity:
+                preferredDuringSchedulingIgnoredDuringExecution:
+                  - weight: 100
+                    podAffinityTerm:
+                      labelSelector:
+                        matchLabels:
+                          app.kubernetes.io/name: prometheus
+                      topologyKey: kubernetes.io/hostname
+
+          # Prometheus service
+          service:
+            type: ClusterIP
+            port: 9090
+
+          # Ingress for Prometheus UI (optional, internal access)
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts:
+              - prometheus.qawave.local
+            paths:
+              - /
+            annotations:
+              nginx.ingress.kubernetes.io/auth-type: basic
+              nginx.ingress.kubernetes.io/auth-secret: monitoring-basic-auth
+              nginx.ingress.kubernetes.io/auth-realm: "Prometheus - Authentication Required"
+
+        # Alertmanager configuration
+        alertmanager:
+          enabled: true
+          alertmanagerSpec:
+            resources:
+              requests:
+                cpu: 100m
+                memory: 256Mi
+              limits:
+                cpu: 500m
+                memory: 512Mi
+
+            # Persistent storage
+            storage:
+              volumeClaimTemplate:
+                spec:
+                  accessModes: ["ReadWriteOnce"]
+                  resources:
+                    requests:
+                      storage: 10Gi
+
+          # Ingress for Alertmanager
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts:
+              - alertmanager.qawave.local
+            paths:
+              - /
+            annotations:
+              nginx.ingress.kubernetes.io/auth-type: basic
+              nginx.ingress.kubernetes.io/auth-secret: monitoring-basic-auth
+              nginx.ingress.kubernetes.io/auth-realm: "Alertmanager - Authentication Required"
+
+        # Grafana configuration
+        grafana:
+          enabled: true
+          adminPassword: "" # Set via secret
+          admin:
+            existingSecret: grafana-admin-credentials
+            userKey: admin-user
+            passwordKey: admin-password
+
+          # Resource limits
+          resources:
+            requests:
+              cpu: 250m
+              memory: 512Mi
+            limits:
+              cpu: 1000m
+              memory: 1Gi
+
+          # Persistent storage
+          persistence:
+            enabled: true
+            size: 10Gi
+
+          # Ingress
+          ingress:
+            enabled: true
+            ingressClassName: nginx
+            hosts:
+              - grafana.qawave.local
+            path: /
+            annotations:
+              cert-manager.io/cluster-issuer: "letsencrypt-prod"
+            tls:
+              - secretName: grafana-tls
+                hosts:
+                  - grafana.qawave.local
+
+          # Default dashboards
+          defaultDashboardsEnabled: true
+          defaultDashboardsTimezone: utc
+
+          # Additional data sources
+          additionalDataSources: []
+
+          # Sidecar for dashboard discovery
+          sidecar:
+            dashboards:
+              enabled: true
+              searchNamespace: ALL
+              label: grafana_dashboard
+              labelValue: "1"
+            datasources:
+              enabled: true
+              searchNamespace: ALL
+
+        # kube-state-metrics
+        kubeStateMetrics:
+          enabled: true
+
+        # Node exporter
+        nodeExporter:
+          enabled: true
+
+        # Prometheus Operator
+        prometheusOperator:
+          enabled: true
+          resources:
+            requests:
+              cpu: 100m
+              memory: 256Mi
+            limits:
+              cpu: 500m
+              memory: 512Mi
+
+        # Default PrometheusRules (alerts)
+        defaultRules:
+          create: true
+          rules:
+            alertmanager: true
+            etcd: false  # Disable if not monitoring etcd
+            configReloaders: true
+            general: true
+            k8s: true
+            kubeApiserverAvailability: true
+            kubeApiserverBurnrate: true
+            kubeApiserverHistogram: true
+            kubeApiserverSlos: true
+            kubeControllerManager: false
+            kubelet: true
+            kubeProxy: false
+            kubePrometheusGeneral: true
+            kubePrometheusNodeRecording: true
+            kubernetesApps: true
+            kubernetesResources: true
+            kubernetesStorage: true
+            kubernetesSystem: true
+            kubeSchedulerAlerting: false
+            kubeSchedulerRecording: false
+            kubeStateMetrics: true
+            network: true
+            node: true
+            nodeExporterAlerting: true
+            nodeExporterRecording: true
+            prometheus: true
+            prometheusOperator: true
+
+        # Thanos sidecar (disabled for now)
+        thanosRuler:
+          enabled: false
+
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: false  # Don't auto-delete monitoring components
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
+      - ServerSideApply=true
+      - RespectIgnoreDifferences=true
+    retry:
+      limit: 5
+      backoff:
+        duration: 10s
+        factor: 2
+        maxDuration: 5m
+  ignoreDifferences:
+    - group: admissionregistration.k8s.io
+      kind: ValidatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks
+    - group: admissionregistration.k8s.io
+      kind: MutatingWebhookConfiguration
+      jsonPointers:
+        - /webhooks
+
+---
+# Deploy QAWave ServiceMonitors
+apiVersion: argoproj.io/v1alpha1
+kind: Application
+metadata:
+  name: qawave-servicemonitors
+  namespace: argocd
+  labels:
+    app: monitoring
+    component: servicemonitors
+  annotations:
+    argocd.argoproj.io/sync-wave: "1"  # Deploy after Prometheus
+  finalizers:
+    - resources-finalizer.argocd.argoproj.io
+spec:
+  project: monitoring
+  source:
+    repoURL: https://github.com/hermanngeorge15/qawave-automation.git
+    targetRevision: main
+    path: infrastructure/kubernetes/base/monitoring/servicemonitors
+  destination:
+    server: https://kubernetes.default.svc
+    namespace: monitoring
+  syncPolicy:
+    automated:
+      prune: true
+      selfHeal: true
+    syncOptions:
+      - CreateNamespace=true
