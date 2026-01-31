@@ -17,7 +17,8 @@
         test test-unit test-integration test-e2e test-coverage \
         db-migrate db-seed db-reset db-shell \
         docker-build docker-push \
-        check-deps health-check
+        check-deps health health-check-local health-check-local-quiet \
+        health-check-json health-check-staging
 
 # Default target
 .DEFAULT_GOAL := help
@@ -281,7 +282,18 @@ docker-push: ## Push Docker images to registry
 # Health & Monitoring
 # ==============================================================================
 
-health-check: ## Run health checks on all services
+health: health-check-local ## Alias for health-check-local
+
+health-check-local: ## Check health of local development services
+	@./scripts/health-check-local.sh
+
+health-check-local-quiet: ## Check local services health (quiet mode)
+	@./scripts/health-check-local.sh --quiet
+
+health-check-json: ## Check local services health (JSON output for CI)
+	@./scripts/health-check-local.sh --json
+
+health-check-staging: ## Run health checks on staging environment
 	@./scripts/health-check.sh
 
 watch-logs: ## Watch logs from specific service (usage: make watch-logs SVC=backend)
