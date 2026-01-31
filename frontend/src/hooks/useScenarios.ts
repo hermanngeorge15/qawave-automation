@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { scenariosApi, type ScenariosListParams } from '@/api/scenarios'
 import { packageKeys } from './usePackages'
+import type { TestStep } from '@/api/types'
 
 // Query key factory
 export const scenarioKeys = {
@@ -58,5 +59,23 @@ export function useDeleteScenario() {
       void queryClient.invalidateQueries({ queryKey: scenarioKeys.lists() })
       void queryClient.invalidateQueries({ queryKey: packageKeys.all })
     },
+  })
+}
+
+export function useUpdateScenarioSteps(scenarioId: string) {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: (steps: TestStep[]) => scenariosApi.updateSteps(scenarioId, steps),
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: scenarioKeys.detail(scenarioId) })
+      void queryClient.invalidateQueries({ queryKey: scenarioKeys.lists() })
+    },
+  })
+}
+
+export function useValidateScenario() {
+  return useMutation({
+    mutationFn: (json: string) => scenariosApi.validate(json),
   })
 }
