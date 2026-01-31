@@ -1,4 +1,20 @@
+# ==============================================================================
+# QAWave Local Development Docker Compose
+# ==============================================================================
+# Usage:
+#   docker compose up -d                    # Core infrastructure only
+#   docker compose --profile apps up -d     # With backend/frontend containers
+#   docker compose --profile auth up -d     # With Keycloak
+#   docker compose --profile debug up -d    # With debug tools
+#   docker compose --profile observability up -d  # With Prometheus/Grafana
+#   docker compose --profile full up -d     # Everything
+# ==============================================================================
+
 services:
+  # ============================================================================
+  # Core Infrastructure (always starts)
+  # ============================================================================
+
   # PostgreSQL Database
   postgres:
     image: postgres:16-alpine
@@ -19,6 +35,12 @@ services:
       retries: 5
     networks:
       - qawave-network
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 256M
 
   # Redis Cache
   redis:
@@ -28,7 +50,7 @@ services:
       - "6379:6379"
     volumes:
       - redis_data:/data
-    command: redis-server --appendonly yes
+    command: redis-server --appendonly yes --maxmemory 128mb --maxmemory-policy allkeys-lru
     healthcheck:
       test: ["CMD", "redis-cli", "ping"]
       interval: 5s
@@ -36,6 +58,12 @@ services:
       retries: 5
     networks:
       - qawave-network
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
 
   # Kafka (KRaft mode - no Zookeeper)
   kafka:
@@ -56,11 +84,16 @@ services:
       KAFKA_AUTO_CREATE_TOPICS_ENABLE: "true"
       KAFKA_NUM_PARTITIONS: 3
       KAFKA_DEFAULT_REPLICATION_FACTOR: 1
+      # Performance tuning
+      KAFKA_LOG_RETENTION_HOURS: 24
+      KAFKA_LOG_SEGMENT_BYTES: 104857600
       # Cluster ID
       CLUSTER_ID: qawave-local-cluster-id
     ports:
       - "9092:9092"
       - "9094:9094"
+    volumes:
+      - kafka_data:/var/lib/kafka/data
     healthcheck:
       test: ["CMD-SHELL", "/opt/kafka/bin/kafka-topics.sh --bootstrap-server localhost:9092 --list || exit 1"]
       interval: 10s
@@ -69,8 +102,253 @@ services:
       start_period: 30s
     networks:
       - qawave-network
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
 
-  # Kafka UI (optional, for debugging)
+  # ============================================================================
+  # Applications (profile: apps or full)
+  # ============================================================================
+
+  # Backend (Spring Boot)
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: qawave-backend
+    environment:
+      SPRING_PROFILES_ACTIVE: local
+      # Database
+      DB_HOST: postgres
+      DB_PORT: 5432
+      DB_NAME: qawave
+      DB_USER: qawave
+      DB_PASSWORD: qawave_dev_password
+      # Redis
+      REDIS_HOST: redis
+      REDIS_PORT: 6379
+      # Kafka
+      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
+      # AI Provider
+      AI_PROVIDER: ${AI_PROVIDER:-openai}
+      AI_API_KEY: ${AI_API_KEY:-}
+      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      # Keycloak (optional)
+      KEYCLOAK_ENABLED: ${KEYCLOAK_ENABLED:-false}
+      KEYCLOAK_URL: http://keycloak:8080
+      KEYCLOAK_REALM: qawave
+      # JVM tuning
+      JAVA_OPTS: -Xms256m -Xmx512m -XX:+UseG1GC
+    ports:
+      - "8080:8080"
+    depends_on:
+      postgres:
+        condition: service_healthy
+      redis:
+        condition: service_healthy
+      kafka:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/actuator/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+      start_period: 60s
+    networks:
+      - qawave-network
+    profiles:
+      - apps
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 768M
+        reservations:
+          memory: 384M
+
+  # Frontend (Vite/Nginx)
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+      args:
+        VITE_API_BASE_URL: http://localhost:8080
+        VITE_KEYCLOAK_URL: ${KEYCLOAK_ENABLED:+http://localhost:8180}
+        VITE_KEYCLOAK_REALM: qawave
+        VITE_KEYCLOAK_CLIENT_ID: qawave-frontend
+    container_name: qawave-frontend
+    ports:
+      - "5173:80"
+    depends_on:
+      backend:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:80 || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - qawave-network
+    profiles:
+      - apps
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+
+  # ============================================================================
+  # Authentication (profile: auth or full)
+  # ============================================================================
+
+  # Keycloak
+  keycloak:
+    image: quay.io/keycloak/keycloak:24.0
+    container_name: qawave-keycloak
+    command: start-dev --import-realm
+    environment:
+      KC_DB: postgres
+      KC_DB_URL: jdbc:postgresql://postgres:5432/keycloak
+      KC_DB_USERNAME: qawave
+      KC_DB_PASSWORD: qawave_dev_password
+      KC_HOSTNAME: localhost
+      KC_HOSTNAME_PORT: 8180
+      KC_HTTP_PORT: 8080
+      KC_HEALTH_ENABLED: true
+      KEYCLOAK_ADMIN: admin
+      KEYCLOAK_ADMIN_PASSWORD: admin
+    ports:
+      - "8180:8080"
+    volumes:
+      - ./infrastructure/kubernetes/base/auth/keycloak/realm/qawave-realm.json:/opt/keycloak/data/import/qawave-realm.json:ro
+      - keycloak_data:/opt/keycloak/data
+    depends_on:
+      postgres:
+        condition: service_healthy
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:8080/health/ready || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 10
+      start_period: 90s
+    networks:
+      - qawave-network
+    profiles:
+      - auth
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 1G
+        reservations:
+          memory: 512M
+
+  # ============================================================================
+  # Observability (profile: observability or full)
+  # ============================================================================
+
+  # Prometheus
+  prometheus:
+    image: prom/prometheus:v2.50.0
+    container_name: qawave-prometheus
+    command:
+      - '--config.file=/etc/prometheus/prometheus.yml'
+      - '--storage.tsdb.path=/prometheus'
+      - '--storage.tsdb.retention.time=7d'
+      - '--web.enable-lifecycle'
+    ports:
+      - "9090:9090"
+    volumes:
+      - ./infrastructure/docker/prometheus/prometheus.yml:/etc/prometheus/prometheus.yml:ro
+      - prometheus_data:/prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:9090/-/healthy || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - qawave-network
+    profiles:
+      - observability
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 512M
+        reservations:
+          memory: 128M
+
+  # Grafana
+  grafana:
+    image: grafana/grafana:10.3.0
+    container_name: qawave-grafana
+    environment:
+      GF_SECURITY_ADMIN_USER: admin
+      GF_SECURITY_ADMIN_PASSWORD: admin
+      GF_USERS_ALLOW_SIGN_UP: false
+      GF_AUTH_ANONYMOUS_ENABLED: true
+      GF_AUTH_ANONYMOUS_ORG_ROLE: Viewer
+    ports:
+      - "3000:3000"
+    volumes:
+      - ./infrastructure/docker/grafana/provisioning:/etc/grafana/provisioning:ro
+      - grafana_data:/var/lib/grafana
+    depends_on:
+      - prometheus
+    healthcheck:
+      test: ["CMD-SHELL", "curl -sf http://localhost:3000/api/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - qawave-network
+    profiles:
+      - observability
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+  # Jaeger (distributed tracing)
+  jaeger:
+    image: jaegertracing/all-in-one:1.54
+    container_name: qawave-jaeger
+    environment:
+      COLLECTOR_OTLP_ENABLED: true
+    ports:
+      - "16686:16686"  # UI
+      - "4317:4317"    # OTLP gRPC
+      - "4318:4318"    # OTLP HTTP
+    healthcheck:
+      test: ["CMD-SHELL", "wget -qO- http://localhost:14269/health || exit 1"]
+      interval: 10s
+      timeout: 5s
+      retries: 3
+    networks:
+      - qawave-network
+    profiles:
+      - observability
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
+
+  # ============================================================================
+  # Debug Tools (profile: debug or full)
+  # ============================================================================
+
+  # Kafka UI
   kafka-ui:
     image: provectuslabs/kafka-ui:latest
     container_name: qawave-kafka-ui
@@ -86,61 +364,88 @@ services:
       - qawave-network
     profiles:
       - debug
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
 
-  # Backend (optional, can run locally with ./gradlew bootRun)
-  backend:
-    build:
-      context: ./backend
-      dockerfile: Dockerfile
-    container_name: qawave-backend
+  # Redis Commander
+  redis-commander:
+    image: rediscommander/redis-commander:latest
+    container_name: qawave-redis-commander
     environment:
-      SPRING_PROFILES_ACTIVE: local
-      DB_HOST: postgres
-      DB_PORT: 5432
-      DB_NAME: qawave
-      DB_USER: qawave
-      DB_PASSWORD: qawave_dev_password
-      REDIS_HOST: redis
-      REDIS_PORT: 6379
-      KAFKA_BOOTSTRAP_SERVERS: kafka:9092
-      AI_PROVIDER: ${AI_PROVIDER:-openai}
-      AI_API_KEY: ${AI_API_KEY:-}
-      AI_MODEL: ${AI_MODEL:-gpt-4o-mini}
+      REDIS_HOSTS: local:redis:6379
     ports:
-      - "8080:8080"
+      - "8091:8081"
+    depends_on:
+      redis:
+        condition: service_healthy
+    networks:
+      - qawave-network
+    profiles:
+      - debug
+      - full
+    deploy:
+      resources:
+        limits:
+          memory: 128M
+        reservations:
+          memory: 32M
+
+  # pgAdmin
+  pgadmin:
+    image: dpage/pgadmin4:8.2
+    container_name: qawave-pgadmin
+    environment:
+      PGADMIN_DEFAULT_EMAIL: admin@qawave.local
+      PGADMIN_DEFAULT_PASSWORD: admin
+      PGADMIN_CONFIG_SERVER_MODE: "False"
+      PGADMIN_CONFIG_MASTER_PASSWORD_REQUIRED: "False"
+    ports:
+      - "8092:80"
+    volumes:
+      - pgadmin_data:/var/lib/pgadmin
     depends_on:
       postgres:
         condition: service_healthy
-      redis:
-        condition: service_healthy
-      kafka:
-        condition: service_healthy
     networks:
       - qawave-network
     profiles:
+      - debug
       - full
+    deploy:
+      resources:
+        limits:
+          memory: 256M
+        reservations:
+          memory: 64M
 
-  # Frontend (optional, can run locally with npm run dev)
-  frontend:
-    build:
-      context: ./frontend
-      dockerfile: Dockerfile
-      args:
-        VITE_API_BASE_URL: http://localhost:8080
-    container_name: qawave-frontend
-    ports:
-      - "5173:80"
-    depends_on:
-      - backend
-    networks:
-      - qawave-network
-    profiles:
-      - full
-
+# ==============================================================================
+# Volumes
+# ==============================================================================
 volumes:
   postgres_data:
+    name: qawave-postgres-data
   redis_data:
+    name: qawave-redis-data
+  kafka_data:
+    name: qawave-kafka-data
+  keycloak_data:
+    name: qawave-keycloak-data
+  prometheus_data:
+    name: qawave-prometheus-data
+  grafana_data:
+    name: qawave-grafana-data
+  pgadmin_data:
+    name: qawave-pgadmin-data
 
+# ==============================================================================
+# Networks
+# ==============================================================================
 networks:
   qawave-network:
+    name: qawave-network
     driver: bridge

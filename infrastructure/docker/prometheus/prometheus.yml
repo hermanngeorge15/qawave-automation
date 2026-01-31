@@ -1,0 +1,52 @@
+# Prometheus configuration for QAWave local development
+global:
+  scrape_interval: 15s
+  evaluation_interval: 15s
+
+scrape_configs:
+  # Prometheus self-monitoring
+  - job_name: 'prometheus'
+    static_configs:
+      - targets: ['localhost:9090']
+        labels:
+          service: prometheus
+
+  # Backend service (Spring Boot Actuator)
+  - job_name: 'qawave-backend'
+    metrics_path: '/actuator/prometheus'
+    static_configs:
+      - targets: ['backend:8080']
+        labels:
+          service: backend
+          app: qawave
+
+  # PostgreSQL (via postgres exporter if added)
+  # Uncomment when postgres_exporter is added
+  # - job_name: 'postgresql'
+  #   static_configs:
+  #     - targets: ['postgres-exporter:9187']
+  #       labels:
+  #         service: postgresql
+
+  # Redis
+  - job_name: 'redis'
+    static_configs:
+      - targets: ['redis:6379']
+        labels:
+          service: redis
+
+  # Kafka (if JMX exporter is added)
+  # - job_name: 'kafka'
+  #   static_configs:
+  #     - targets: ['kafka:9999']
+  #       labels:
+  #         service: kafka
+
+  # Keycloak (if metrics are enabled)
+  - job_name: 'keycloak'
+    metrics_path: '/metrics'
+    static_configs:
+      - targets: ['keycloak:8080']
+        labels:
+          service: keycloak
+          app: qawave
