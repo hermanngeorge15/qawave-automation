@@ -92,6 +92,33 @@ qawave:
     enabled: ${RATE_LIMIT_ENABLED:true}
     default-limit: 1000
     default-window-seconds: 60
+  logging:
+    request-logging:
+      enabled: ${REQUEST_LOGGING_ENABLED:true}
+      log-request-body: ${LOG_REQUEST_BODY:false}
+      log-response-body: ${LOG_RESPONSE_BODY:false}
+      max-body-size: 4096
+      excluded-paths:
+        - /actuator
+        - /health
+        - /ready
+        - /api-docs
+        - /swagger-ui
+    redacted-headers:
+      - Authorization
+      - Cookie
+      - Set-Cookie
+      - X-API-Key
+      - X-Auth-Token
+    redacted-fields:
+      - password
+      - secret
+      - token
+      - apiKey
+      - api_key
+      - credentials
+  tracing:
+    enabled: ${TRACING_ENABLED:true}
 
 management:
   endpoints:
@@ -104,6 +131,12 @@ management:
   metrics:
     tags:
       application: ${spring.application.name}
+  tracing:
+    sampling:
+      probability: ${TRACING_SAMPLE_RATE:1.0}
+  otlp:
+    tracing:
+      endpoint: ${OTLP_ENDPOINT:http://localhost:4318/v1/traces}
 
 server:
   port: 8080

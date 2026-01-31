@@ -26,6 +26,11 @@ management:
 qawave:
   security:
     enabled: false
+  logging:
+    request-logging:
+      enabled: false
+  tracing:
+    enabled: false
 
 logging:
   level:
