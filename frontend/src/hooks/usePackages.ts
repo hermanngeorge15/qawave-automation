@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { packagesApi } from '@/api'
-import type { CreateQaPackageRequest } from '@/api/types'
+import type { CreateQaPackageRequest, UpdateQaPackageRequest } from '@/api/types'
 
 // Query key factory
 export const packageKeys = {
@@ -45,6 +45,19 @@ export function useDeletePackage() {
   return useMutation({
     mutationFn: (id: string) => packagesApi.delete(id),
     onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
+    },
+  })
+}
+
+export function useUpdatePackage() {
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: ({ id, data }: { id: string; data: UpdateQaPackageRequest }) =>
+      packagesApi.update(id, data),
+    onSuccess: (_data, { id }) => {
+      void queryClient.invalidateQueries({ queryKey: packageKeys.detail(id) })
       void queryClient.invalidateQueries({ queryKey: packageKeys.lists() })
     },
   })

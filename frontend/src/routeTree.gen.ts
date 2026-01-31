@@ -17,6 +17,8 @@ import { Route as AppScenariosRouteImport } from './routes/_app/scenarios'
 import { Route as AppRunsRouteImport } from './routes/_app/runs'
 import { Route as AppPackagesRouteImport } from './routes/_app/packages'
 import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
+import { Route as AppScenariosScenarioIdRouteImport } from './routes/_app/scenarios.$scenarioId'
+import { Route as AppRunsCompareRouteImport } from './routes/_app/runs.compare'
 import { Route as AppRunsRunIdRouteImport } from './routes/_app/runs.$runId'
 import { Route as AppPackagesNewRouteImport } from './routes/_app/packages.new'
 import { Route as AppPackagesPackageIdRouteImport } from './routes/_app/packages.$packageId'
@@ -60,6 +62,16 @@ const AppDashboardRoute = AppDashboardRouteImport.update({
   path: '/dashboard',
   getParentRoute: () => AppRoute,
 } as any)
+const AppScenariosScenarioIdRoute = AppScenariosScenarioIdRouteImport.update({
+  id: '/$scenarioId',
+  path: '/$scenarioId',
+  getParentRoute: () => AppScenariosRoute,
+} as any)
+const AppRunsCompareRoute = AppRunsCompareRouteImport.update({
+  id: '/compare',
+  path: '/compare',
+  getParentRoute: () => AppRunsRoute,
+} as any)
 const AppRunsRunIdRoute = AppRunsRunIdRouteImport.update({
   id: '/$runId',
   path: '/$runId',
@@ -81,24 +93,28 @@ export interface FileRoutesByFullPath {
   '/dashboard': typeof AppDashboardRoute
   '/packages': typeof AppPackagesRouteWithChildren
   '/runs': typeof AppRunsRouteWithChildren
-  '/scenarios': typeof AppScenariosRoute
+  '/scenarios': typeof AppScenariosRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/unauthorized': typeof AppUnauthorizedRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/packages/new': typeof AppPackagesNewRoute
   '/runs/$runId': typeof AppRunsRunIdRoute
+  '/runs/compare': typeof AppRunsCompareRoute
+  '/scenarios/$scenarioId': typeof AppScenariosScenarioIdRoute
 }
 export interface FileRoutesByTo {
   '/dashboard': typeof AppDashboardRoute
   '/packages': typeof AppPackagesRouteWithChildren
   '/runs': typeof AppRunsRouteWithChildren
-  '/scenarios': typeof AppScenariosRoute
+  '/scenarios': typeof AppScenariosRouteWithChildren
   '/settings': typeof AppSettingsRoute
   '/unauthorized': typeof AppUnauthorizedRoute
   '/': typeof AppIndexRoute
   '/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/packages/new': typeof AppPackagesNewRoute
   '/runs/$runId': typeof AppRunsRunIdRoute
+  '/runs/compare': typeof AppRunsCompareRoute
+  '/scenarios/$scenarioId': typeof AppScenariosScenarioIdRoute
 }
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
@@ -106,13 +122,15 @@ export interface FileRoutesById {
   '/_app/dashboard': typeof AppDashboardRoute
   '/_app/packages': typeof AppPackagesRouteWithChildren
   '/_app/runs': typeof AppRunsRouteWithChildren
-  '/_app/scenarios': typeof AppScenariosRoute
+  '/_app/scenarios': typeof AppScenariosRouteWithChildren
   '/_app/settings': typeof AppSettingsRoute
   '/_app/unauthorized': typeof AppUnauthorizedRoute
   '/_app/': typeof AppIndexRoute
   '/_app/packages/$packageId': typeof AppPackagesPackageIdRoute
   '/_app/packages/new': typeof AppPackagesNewRoute
   '/_app/runs/$runId': typeof AppRunsRunIdRoute
+  '/_app/runs/compare': typeof AppRunsCompareRoute
+  '/_app/scenarios/$scenarioId': typeof AppScenariosScenarioIdRoute
 }
 export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
@@ -127,6 +145,8 @@ export interface FileRouteTypes {
     | '/packages/$packageId'
     | '/packages/new'
     | '/runs/$runId'
+    | '/runs/compare'
+    | '/scenarios/$scenarioId'
   fileRoutesByTo: FileRoutesByTo
   to:
     | '/dashboard'
@@ -139,6 +159,8 @@ export interface FileRouteTypes {
     | '/packages/$packageId'
     | '/packages/new'
     | '/runs/$runId'
+    | '/runs/compare'
+    | '/scenarios/$scenarioId'
   id:
     | '__root__'
     | '/_app'
@@ -152,6 +174,8 @@ export interface FileRouteTypes {
     | '/_app/packages/$packageId'
     | '/_app/packages/new'
     | '/_app/runs/$runId'
+    | '/_app/runs/compare'
+    | '/_app/scenarios/$scenarioId'
   fileRoutesById: FileRoutesById
 }
 export interface RootRouteChildren {
@@ -216,6 +240,20 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppDashboardRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/scenarios/$scenarioId': {
+      id: '/_app/scenarios/$scenarioId'
+      path: '/$scenarioId'
+      fullPath: '/scenarios/$scenarioId'
+      preLoaderRoute: typeof AppScenariosScenarioIdRouteImport
+      parentRoute: typeof AppScenariosRoute
+    }
+    '/_app/runs/compare': {
+      id: '/_app/runs/compare'
+      path: '/compare'
+      fullPath: '/runs/compare'
+      preLoaderRoute: typeof AppRunsCompareRouteImport
+      parentRoute: typeof AppRunsRoute
+    }
     '/_app/runs/$runId': {
       id: '/_app/runs/$runId'
       path: '/$runId'
@@ -256,20 +294,34 @@ const AppPackagesRouteWithChildren = AppPackagesRoute._addFileChildren(
 
 interface AppRunsRouteChildren {
   AppRunsRunIdRoute: typeof AppRunsRunIdRoute
+  AppRunsCompareRoute: typeof AppRunsCompareRoute
 }
 
 const AppRunsRouteChildren: AppRunsRouteChildren = {
   AppRunsRunIdRoute: AppRunsRunIdRoute,
+  AppRunsCompareRoute: AppRunsCompareRoute,
 }
 
 const AppRunsRouteWithChildren =
   AppRunsRoute._addFileChildren(AppRunsRouteChildren)
 
+interface AppScenariosRouteChildren {
+  AppScenariosScenarioIdRoute: typeof AppScenariosScenarioIdRoute
+}
+
+const AppScenariosRouteChildren: AppScenariosRouteChildren = {
+  AppScenariosScenarioIdRoute: AppScenariosScenarioIdRoute,
+}
+
+const AppScenariosRouteWithChildren = AppScenariosRoute._addFileChildren(
+  AppScenariosRouteChildren,
+)
+
 interface AppRouteChildren {
   AppDashboardRoute: typeof AppDashboardRoute
   AppPackagesRoute: typeof AppPackagesRouteWithChildren
   AppRunsRoute: typeof AppRunsRouteWithChildren
-  AppScenariosRoute: typeof AppScenariosRoute
+  AppScenariosRoute: typeof AppScenariosRouteWithChildren
   AppSettingsRoute: typeof AppSettingsRoute
   AppUnauthorizedRoute: typeof AppUnauthorizedRoute
   AppIndexRoute: typeof AppIndexRoute
@@ -279,7 +331,7 @@ const AppRouteChildren: AppRouteChildren = {
   AppDashboardRoute: AppDashboardRoute,
   AppPackagesRoute: AppPackagesRouteWithChildren,
   AppRunsRoute: AppRunsRouteWithChildren,
-  AppScenariosRoute: AppScenariosRoute,
+  AppScenariosRoute: AppScenariosRouteWithChildren,
   AppSettingsRoute: AppSettingsRoute,
   AppUnauthorizedRoute: AppUnauthorizedRoute,
   AppIndexRoute: AppIndexRoute,

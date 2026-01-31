@@ -1,0 +1,12 @@
+# Grafana dashboard provisioning for QAWave local development
+apiVersion: 1
+
+providers:
+  - name: 'QAWave'
+    orgId: 1
+    folder: 'QAWave'
+    type: file
+    disableDeletion: false
+    editable: true
+    options:
+      path: /etc/grafana/provisioning/dashboards/json
