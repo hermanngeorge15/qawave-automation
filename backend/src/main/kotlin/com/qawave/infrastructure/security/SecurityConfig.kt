@@ -16,6 +16,8 @@ import org.springframework.security.oauth2.jwt.Jwt
 import org.springframework.security.oauth2.server.resource.authentication.JwtAuthenticationConverter
 import org.springframework.security.oauth2.server.resource.authentication.ReactiveJwtAuthenticationConverterAdapter
 import org.springframework.security.web.server.SecurityWebFilterChain
+import org.springframework.security.web.server.header.ReferrerPolicyServerHttpHeadersWriter
+import org.springframework.security.web.server.header.XFrameOptionsServerHttpHeadersWriter
 import reactor.core.publisher.Mono
 
 /**
@@ -26,6 +28,15 @@ import reactor.core.publisher.Mono
  * - Configures public and protected endpoints
  * - Extracts roles from Keycloak JWT tokens
  * - Enables method-level security with @PreAuthorize
+ * - Configures security headers (CSP, X-Frame-Options, etc.)
+ *
+ * Security Headers:
+ * - Content-Security-Policy: Prevents XSS and injection attacks
+ * - X-Frame-Options: DENY - Prevents clickjacking
+ * - X-Content-Type-Options: nosniff - Prevents MIME sniffing
+ * - Referrer-Policy: strict-origin-when-cross-origin
+ * - Permissions-Policy: Disables dangerous browser features
+ * - Cache-Control: no-cache for API responses
  */
 @Configuration
 @EnableWebFluxSecurity
@@ -83,6 +94,46 @@ class SecurityConfig(
 
         return http
             .csrf { it.disable() } // Disable CSRF for API (stateless JWT auth)
+            .headers { headers ->
+                // Content Security Policy
+                headers.contentSecurityPolicy { csp ->
+                    csp.policyDirectives(
+                        "default-src 'self'; " +
+                            "script-src 'self'; " +
+                            "style-src 'self' 'unsafe-inline'; " +
+                            "img-src 'self' data: https:; " +
+                            "font-src 'self'; " +
+                            "connect-src 'self'; " +
+                            "frame-ancestors 'none'; " +
+                            "base-uri 'self'; " +
+                            "form-action 'self'",
+                    )
+                }
+                // Prevent clickjacking
+                headers.frameOptions { frameOptions ->
+                    frameOptions.mode(XFrameOptionsServerHttpHeadersWriter.Mode.DENY)
+                }
+                // Prevent MIME type sniffing
+                headers.contentTypeOptions { }
+                // Referrer policy
+                headers.referrerPolicy { referrer ->
+                    referrer.policy(ReferrerPolicyServerHttpHeadersWriter.ReferrerPolicy.STRICT_ORIGIN_WHEN_CROSS_ORIGIN)
+                }
+                // Permissions policy (formerly Feature-Policy)
+                headers.permissionsPolicy { permissions ->
+                    permissions.policy(
+                        "geolocation=(), " +
+                            "microphone=(), " +
+                            "camera=(), " +
+                            "payment=(), " +
+                            "usb=()",
+                    )
+                }
+                // Cache control for API responses
+                headers.cache { cache ->
+                    cache.disable()
+                }
+            }
             .authorizeExchange { exchanges ->
                 exchanges
                     // Public endpoints
