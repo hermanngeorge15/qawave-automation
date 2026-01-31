@@ -22,15 +22,16 @@ class SensitiveDataRedactor(
         const val REDACTED = "[REDACTED]"
 
         // Common patterns for sensitive data
-        private val SENSITIVE_PATTERNS = listOf(
-            Regex("(?i)password"),
-            Regex("(?i)secret"),
-            Regex("(?i)token"),
-            Regex("(?i)api[-_]?key"),
-            Regex("(?i)auth"),
-            Regex("(?i)credential"),
-            Regex("(?i)bearer"),
-        )
+        private val SENSITIVE_PATTERNS =
+            listOf(
+                Regex("(?i)password"),
+                Regex("(?i)secret"),
+                Regex("(?i)token"),
+                Regex("(?i)api[-_]?key"),
+                Regex("(?i)auth"),
+                Regex("(?i)credential"),
+                Regex("(?i)bearer"),
+            )
     }
 
     /**
@@ -107,10 +108,11 @@ class SensitiveDataRedactor(
         result = result.replace(Regex("Bearer\\s+[A-Za-z0-9\\-_.]+"), "Bearer $REDACTED")
 
         // Redact potential API keys (common patterns)
-        result = result.replace(
-            Regex("(?i)(api[-_]?key|apikey|secret|password|token)\\s*[=:]\\s*[\"']?[^\"'\\s,}]+"),
-            "$1=$REDACTED",
-        )
+        result =
+            result.replace(
+                Regex("(?i)(api[-_]?key|apikey|secret|password|token)\\s*[=:]\\s*[\"']?[^\"'\\s,}]+"),
+                "$1=$REDACTED",
+            )
 
         return result
     }
