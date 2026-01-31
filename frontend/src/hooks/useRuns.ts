@@ -1,14 +1,24 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { runsApi } from '@/api'
+import type { ListRunsParams } from '@/api/runs'
 
 // Query key factory
 export const runKeys = {
   all: ['runs'] as const,
+  lists: () => [...runKeys.all, 'list'] as const,
+  list: (params: ListRunsParams) => [...runKeys.lists(), params] as const,
   details: () => [...runKeys.all, 'detail'] as const,
   detail: (id: string) => [...runKeys.details(), id] as const,
 }
 
 // Hooks
+export function useRuns(params: ListRunsParams = {}) {
+  return useQuery({
+    queryKey: runKeys.list(params),
+    queryFn: ({ signal }) => runsApi.list(params, signal),
+  })
+}
+
 export function useRun(id: string, options?: { refetchInterval?: number | false }) {
   return useQuery({
     queryKey: runKeys.detail(id),
