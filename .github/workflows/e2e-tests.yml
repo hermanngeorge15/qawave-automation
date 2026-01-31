@@ -76,11 +76,53 @@ jobs:
         working-directory: e2e-tests
         run: npx playwright install --with-deps ${{ matrix.browser }}
 
-      - name: Start services (mock)
+      - name: Start infrastructure services
         run: |
-          # In a real setup, we'd start the full stack here
-          # For now, we'll skip if services aren't available
-          echo "Services would be started here in full CI setup"
+          docker compose up -d postgres redis kafka
+          # Wait for services to be healthy
+          docker compose exec -T postgres pg_isready -U qawave --timeout=60 || echo "Postgres not ready yet"
+          sleep 10
+          docker compose ps
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Build and start backend
+        working-directory: backend
+        run: |
+          ./gradlew bootJar --no-daemon -x test
+          java -jar build/libs/*.jar &
+          echo $! > /tmp/backend.pid
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: qawave
+          DB_USER: qawave
+          DB_PASSWORD: qawave_dev_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9094
+
+      - name: Build and start frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npx vite preview --port 5173 --host &
+          echo $! > /tmp/frontend.pid
+
+      - name: Wait for services to be ready
+        run: |
+          echo "Waiting for backend..."
+          npx wait-on http://localhost:8080/actuator/health --timeout 120000 || echo "Backend timeout"
+          echo "Waiting for frontend..."
+          npx wait-on http://localhost:5173 --timeout 60000 || echo "Frontend timeout"
+          echo "Services ready!"
 
       - name: Run Playwright tests
         working-directory: e2e-tests
@@ -160,7 +202,7 @@ jobs:
   api-tests:
     name: API Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 15
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -172,6 +214,37 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: e2e-tests/package-lock.json
+
+      - name: Start infrastructure services
+        run: |
+          docker compose up -d postgres redis kafka
+          sleep 10
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Build and start backend
+        working-directory: backend
+        run: |
+          ./gradlew bootJar --no-daemon -x test
+          java -jar build/libs/*.jar &
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: qawave
+          DB_USER: qawave
+          DB_PASSWORD: qawave_dev_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9094
+
+      - name: Wait for backend
+        run: npx wait-on http://localhost:8080/actuator/health --timeout 120000
 
       - name: Install dependencies
         working-directory: e2e-tests
@@ -201,7 +274,7 @@ jobs:
   smoke-tests:
     name: Smoke Tests
     runs-on: ubuntu-latest
-    timeout-minutes: 10
+    timeout-minutes: 20
 
     steps:
       - name: Checkout
@@ -213,6 +286,46 @@ jobs:
           node-version: '20'
           cache: 'npm'
           cache-dependency-path: e2e-tests/package-lock.json
+
+      - name: Start infrastructure services
+        run: |
+          docker compose up -d postgres redis kafka
+          sleep 10
+
+      - name: Set up JDK 21
+        uses: actions/setup-java@v4
+        with:
+          java-version: '21'
+          distribution: 'temurin'
+          cache: 'gradle'
+
+      - name: Build and start backend
+        working-directory: backend
+        run: |
+          ./gradlew bootJar --no-daemon -x test
+          java -jar build/libs/*.jar &
+        env:
+          SPRING_PROFILES_ACTIVE: test
+          DB_HOST: localhost
+          DB_PORT: 5432
+          DB_NAME: qawave
+          DB_USER: qawave
+          DB_PASSWORD: qawave_dev_password
+          REDIS_HOST: localhost
+          REDIS_PORT: 6379
+          KAFKA_BOOTSTRAP_SERVERS: localhost:9094
+
+      - name: Build and start frontend
+        working-directory: frontend
+        run: |
+          npm ci
+          npm run build
+          npx vite preview --port 5173 --host &
+
+      - name: Wait for services
+        run: |
+          npx wait-on http://localhost:8080/actuator/health --timeout 120000
+          npx wait-on http://localhost:5173 --timeout 60000
 
       - name: Install dependencies
         working-directory: e2e-tests
