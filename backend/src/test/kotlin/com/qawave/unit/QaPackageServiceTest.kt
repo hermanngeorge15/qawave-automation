@@ -743,6 +743,7 @@ class QaPackageServiceTest {
     }
 
     // Helper function to create test packages
+    @Suppress("LongParameterList")
     private fun createTestPackage(
         id: QaPackageId,
         name: String = "Test Package",
