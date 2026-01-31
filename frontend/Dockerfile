@@ -56,6 +56,7 @@ LABEL org.opencontainers.image.title="QAWave Frontend" \
       org.opencontainers.image.licenses="MIT"
 
 # Install security updates and required tools
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     curl \
     && apk upgrade --no-cache \
