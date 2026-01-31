@@ -20,8 +20,9 @@ import org.slf4j.MDC
  * }
  * ```
  */
-class StructuredLogger(@PublishedApi internal val delegate: Logger) : Logger by delegate {
-
+class StructuredLogger(
+    @PublishedApi internal val delegate: Logger
+) : Logger by delegate {
     companion object {
         inline fun <reified T> getLogger(): StructuredLogger {
             return StructuredLogger(LoggerFactory.getLogger(T::class.java))

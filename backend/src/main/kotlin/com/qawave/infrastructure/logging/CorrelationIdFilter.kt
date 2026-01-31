@@ -23,7 +23,6 @@ import java.util.UUID
 @Component
 @Order(Ordered.HIGHEST_PRECEDENCE)
 class CorrelationIdFilter : WebFilter {
-
     companion object {
         const val CORRELATION_ID_HEADER = "X-Correlation-ID"
         const val REQUEST_ID_HEADER = "X-Request-ID"
@@ -35,12 +34,14 @@ class CorrelationIdFilter : WebFilter {
 
     override fun filter(exchange: ServerWebExchange, chain: WebFilterChain): Mono<Void> {
         // Extract or generate correlation ID
-        val correlationId = exchange.request.headers.getFirst(CORRELATION_ID_HEADER)
-            ?: UUID.randomUUID().toString()
+        val correlationId =
+            exchange.request.headers.getFirst(CORRELATION_ID_HEADER)
+                ?: UUID.randomUUID().toString()
 
         // Generate unique request ID for this specific request
-        val requestId = exchange.request.headers.getFirst(REQUEST_ID_HEADER)
-            ?: UUID.randomUUID().toString()
+        val requestId =
+            exchange.request.headers.getFirst(REQUEST_ID_HEADER)
+                ?: UUID.randomUUID().toString()
 
         // Add IDs to response headers
         exchange.response.headers.add(CORRELATION_ID_HEADER, correlationId)
@@ -74,14 +75,16 @@ object CorrelationContext {
     /**
      * Gets the correlation ID from the Reactor context.
      */
-    fun getCorrelationId(): Mono<String> = Mono.deferContextual { ctx ->
-        Mono.justOrEmpty(ctx.getOrDefault<String?>(CorrelationIdFilter.CONTEXT_CORRELATION_ID, null))
-    }
+    fun getCorrelationId(): Mono<String> =
+        Mono.deferContextual { ctx ->
+            Mono.justOrEmpty(ctx.getOrDefault<String?>(CorrelationIdFilter.CONTEXT_CORRELATION_ID, null))
+        }
 
     /**
      * Gets the request ID from the Reactor context.
      */
-    fun getRequestId(): Mono<String> = Mono.deferContextual { ctx ->
-        Mono.justOrEmpty(ctx.getOrDefault<String?>(CorrelationIdFilter.CONTEXT_REQUEST_ID, null))
-    }
+    fun getRequestId(): Mono<String> =
+        Mono.deferContextual { ctx ->
+            Mono.justOrEmpty(ctx.getOrDefault<String?>(CorrelationIdFilter.CONTEXT_REQUEST_ID, null))
+        }
 }
