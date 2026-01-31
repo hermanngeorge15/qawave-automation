@@ -20,6 +20,10 @@ repositories {
     mavenCentral()
 }
 
+// CVE fixes: Override vulnerable dependency versions
+extra["postgresql.version"] = "42.7.3" // CVE-2024-1597 fix
+extra["spring-security.version"] = "6.2.7" // CVE-2024-38821 fix
+
 dependencies {
     // Spring WebFlux
     implementation("org.springframework.boot:spring-boot-starter-webflux")
