@@ -1,7 +1,20 @@
 import apiClient from './client'
-import type { Scenario, PaginatedResponse } from './types'
+import type { Scenario, PaginatedResponse, TestStep } from './types'
 
 const BASE_PATH = '/api/qa/scenarios'
+
+export interface ScenarioValidationResult {
+  valid: boolean
+  errors: ScenarioValidationError[]
+  warnings: ScenarioValidationError[]
+}
+
+export interface ScenarioValidationError {
+  line: number
+  column: number
+  message: string
+  path?: string
+}
 
 export interface ScenariosListParams {
   page?: number | undefined
@@ -71,6 +84,20 @@ export const scenariosApi = {
    */
   run(id: string): Promise<undefined> {
     return apiClient.post<undefined>(`${BASE_PATH}/${id}/run`)
+  },
+
+  /**
+   * Update scenario steps
+   */
+  updateSteps(id: string, steps: TestStep[]): Promise<Scenario> {
+    return apiClient.patch<Scenario>(`${BASE_PATH}/${id}`, { steps })
+  },
+
+  /**
+   * Validate scenario JSON without saving
+   */
+  validate(json: string): Promise<ScenarioValidationResult> {
+    return apiClient.post<ScenarioValidationResult>(`${BASE_PATH}/validate`, { json })
   },
 }
 
