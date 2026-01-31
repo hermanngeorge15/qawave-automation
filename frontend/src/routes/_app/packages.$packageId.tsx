@@ -1,14 +1,22 @@
 import { useState, useMemo } from 'react'
-import { createFileRoute, Link } from '@tanstack/react-router'
-import { usePackage, usePackageScenarios, usePackageRuns, useStartRun, useGenerateScenarios } from '@/hooks'
+import { createFileRoute, Link, useNavigate } from '@tanstack/react-router'
+import {
+  usePackage,
+  usePackageScenarios,
+  usePackageRuns,
+  useStartRun,
+  useGenerateScenarios,
+  useUpdatePackage,
+  useDeletePackage,
+} from '@/hooks'
 import { StatusBadge, Skeleton, EmptyState } from '@/components/ui'
-import type { Scenario, TestRun, HttpMethod } from '@/api/types'
+import type { Scenario, TestRun, HttpMethod, QaPackage, UpdateQaPackageRequest } from '@/api/types'
 
 export const Route = createFileRoute('/_app/packages/$packageId')({
   component: PackageDetailPage,
 })
 
-type TabId = 'scenarios' | 'runs' | 'coverage'
+type TabId = 'scenarios' | 'runs' | 'coverage' | 'settings'
 
 function PackageDetailPage() {
   const { packageId } = Route.useParams()
@@ -89,13 +97,6 @@ function PackageDetailPage() {
                 {startRun.isPending ? 'Starting...' : 'Start Run'}
               </button>
             )}
-            <Link
-              to="/packages/$packageId"
-              params={{ packageId }}
-              className="btn btn-ghost"
-            >
-              Edit
-            </Link>
           </div>
         </div>
       </header>
@@ -144,6 +145,12 @@ function PackageDetailPage() {
             activeTab={activeTab}
             onClick={setActiveTab}
           />
+          <TabButton
+            id="settings"
+            label="Settings"
+            activeTab={activeTab}
+            onClick={setActiveTab}
+          />
         </nav>
       </div>
 
@@ -152,12 +159,41 @@ function PackageDetailPage() {
         <ScenariosTab scenarios={scenarios?.content ?? []} isLoading={scenariosLoading} />
       )}
       {activeTab === 'runs' && (
-        <RunsTab runs={runs?.content ?? []} isLoading={runsLoading} packageId={packageId} />
+        <RunsTab runs={runs?.content ?? []} isLoading={runsLoading} />
       )}
       {activeTab === 'coverage' && (
         <CoverageTab scenarios={scenarios?.content ?? []} isLoading={scenariosLoading} />
       )}
+      {activeTab === 'settings' && (
+        <SettingsTab pkg={pkg} packageId={packageId} />
+      )}
     </div>
+  )
+}
+
+function TabButton({
+  id,
+  label,
+  activeTab,
+  onClick,
+}: {
+  id: TabId
+  label: string
+  activeTab: TabId
+  onClick: (tab: TabId) => void
+}) {
+  const isActive = activeTab === id
+  return (
+    <button
+      onClick={() => { onClick(id) }}
+      className={`pb-3 px-1 border-b-2 transition-colors ${
+        isActive
+          ? 'border-primary-500 text-white'
+          : 'border-transparent text-secondary-400 hover:text-white'
+      }`}
+    >
+      {label}
+    </button>
   )
 }
 
@@ -226,11 +262,9 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
 function RunsTab({
   runs,
   isLoading,
-  packageId,
 }: {
   runs: TestRun[]
   isLoading: boolean
-  packageId: string
 }) {
   if (isLoading) {
     return (
@@ -270,13 +304,13 @@ function RunsTab({
   return (
     <div className="space-y-3">
       {runs.map((run) => (
-        <RunCard key={run.id} run={run} packageId={packageId} />
+        <RunCard key={run.id} run={run} />
       ))}
     </div>
   )
 }
 
-function RunCard({ run, packageId }: { run: TestRun; packageId: string }) {
+function RunCard({ run }: { run: TestRun }) {
   const statusColors: Record<string, string> = {
     PENDING: 'bg-yellow-500/10 text-yellow-500',
     RUNNING: 'bg-blue-500/10 text-blue-500',
@@ -286,8 +320,8 @@ function RunCard({ run, packageId }: { run: TestRun; packageId: string }) {
 
   return (
     <Link
-      to="/packages/$packageId"
-      params={{ packageId }}
+      to="/runs/$runId"
+      params={{ runId: run.id }}
       className="card block hover:border-primary-500 transition-colors"
     >
       <div className="flex justify-between items-start">
@@ -315,71 +349,6 @@ function RunCard({ run, packageId }: { run: TestRun; packageId: string }) {
         </div>
       </div>
     </Link>
-  )
-}
-
-function PackageDetailSkeleton() {
-  return (
-    <div className="package-detail-page">
-      <div className="mb-8">
-        <Skeleton className="h-4 w-40 mb-4" />
-        <div className="flex justify-between items-center">
-          <div>
-            <Skeleton className="h-8 w-64 mb-2" />
-            <Skeleton className="h-4 w-96" />
-          </div>
-          <div className="flex gap-2">
-            <Skeleton className="h-10 w-32" />
-            <Skeleton className="h-10 w-24" />
-          </div>
-        </div>
-      </div>
-
-      <Skeleton className="h-40 mb-6" />
-      <Skeleton className="h-10 w-64 mb-6" />
-      <div className="space-y-3">
-        <Skeleton className="h-20" />
-        <Skeleton className="h-20" />
-        <Skeleton className="h-20" />
-      </div>
-    </div>
-  )
-}
-
-function formatDate(dateString: string): string {
-  const date = new Date(dateString)
-  return date.toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric',
-    hour: '2-digit',
-    minute: '2-digit',
-  })
-}
-
-function TabButton({
-  id,
-  label,
-  activeTab,
-  onClick,
-}: {
-  id: TabId
-  label: string
-  activeTab: TabId
-  onClick: (tab: TabId) => void
-}) {
-  const isActive = activeTab === id
-  return (
-    <button
-      onClick={() => { onClick(id) }}
-      className={`pb-3 px-1 border-b-2 transition-colors ${
-        isActive
-          ? 'border-primary-500 text-white'
-          : 'border-transparent text-secondary-400 hover:text-white'
-      }`}
-    >
-      {label}
-    </button>
   )
 }
 
@@ -597,4 +566,281 @@ function CoverageStatusBadge({ status }: { status: CoverageStatus }) {
       {label}
     </span>
   )
+}
+
+function SettingsTab({ pkg, packageId }: { pkg: QaPackage; packageId: string }) {
+  const navigate = useNavigate()
+  const updatePackage = useUpdatePackage()
+  const deletePackage = useDeletePackage()
+
+  const [formData, setFormData] = useState<UpdateQaPackageRequest>({
+    name: pkg.name,
+    description: pkg.description ?? '',
+    openApiSpec: pkg.openApiSpec,
+    baseUrl: pkg.baseUrl,
+  })
+  const [hasChanges, setHasChanges] = useState(false)
+  const [deleteConfirmation, setDeleteConfirmation] = useState('')
+  const [showDeleteConfirm, setShowDeleteConfirm] = useState(false)
+
+  const handleInputChange = (field: keyof UpdateQaPackageRequest, value: string) => {
+    setFormData(prev => ({ ...prev, [field]: value }))
+    setHasChanges(true)
+  }
+
+  const handleSave = () => {
+    updatePackage.mutate(
+      { id: packageId, data: formData },
+      {
+        onSuccess: () => {
+          setHasChanges(false)
+        },
+      }
+    )
+  }
+
+  const handleCancel = () => {
+    setFormData({
+      name: pkg.name,
+      description: pkg.description ?? '',
+      openApiSpec: pkg.openApiSpec,
+      baseUrl: pkg.baseUrl,
+    })
+    setHasChanges(false)
+  }
+
+  const handleDelete = () => {
+    if (deleteConfirmation !== pkg.name) return
+
+    deletePackage.mutate(packageId, {
+      onSuccess: () => {
+        void navigate({ to: '/packages' })
+      },
+    })
+  }
+
+  return (
+    <div className="space-y-8">
+      {/* General Information */}
+      <section className="card">
+        <h3 className="text-lg font-semibold text-white mb-4">General Information</h3>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="name" className="block text-sm font-medium text-secondary-400 mb-1">
+              Package Name *
+            </label>
+            <input
+              id="name"
+              type="text"
+              value={formData.name ?? ''}
+              onChange={(e) => { handleInputChange('name', e.target.value) }}
+              className="w-full px-3 py-2 bg-secondary-800 border border-secondary-700 rounded-lg text-white placeholder-secondary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="Enter package name"
+            />
+          </div>
+
+          <div>
+            <label htmlFor="description" className="block text-sm font-medium text-secondary-400 mb-1">
+              Description
+            </label>
+            <textarea
+              id="description"
+              value={formData.description ?? ''}
+              onChange={(e) => { handleInputChange('description', e.target.value) }}
+              rows={3}
+              className="w-full px-3 py-2 bg-secondary-800 border border-secondary-700 rounded-lg text-white placeholder-secondary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent resize-none"
+              placeholder="Describe what this package tests"
+            />
+          </div>
+        </div>
+      </section>
+
+      {/* API Configuration */}
+      <section className="card">
+        <h3 className="text-lg font-semibold text-white mb-4">API Configuration</h3>
+        <div className="space-y-4">
+          <div>
+            <label htmlFor="openApiSpec" className="block text-sm font-medium text-secondary-400 mb-1">
+              OpenAPI Specification URL *
+            </label>
+            <input
+              id="openApiSpec"
+              type="url"
+              value={formData.openApiSpec ?? ''}
+              onChange={(e) => { handleInputChange('openApiSpec', e.target.value) }}
+              className="w-full px-3 py-2 bg-secondary-800 border border-secondary-700 rounded-lg text-white font-mono text-sm placeholder-secondary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="https://api.example.com/openapi.yaml"
+            />
+            <p className="mt-1 text-xs text-secondary-500">
+              URL to your OpenAPI/Swagger specification file
+            </p>
+          </div>
+
+          <div>
+            <label htmlFor="baseUrl" className="block text-sm font-medium text-secondary-400 mb-1">
+              Base URL (System Under Test) *
+            </label>
+            <input
+              id="baseUrl"
+              type="url"
+              value={formData.baseUrl ?? ''}
+              onChange={(e) => { handleInputChange('baseUrl', e.target.value) }}
+              className="w-full px-3 py-2 bg-secondary-800 border border-secondary-700 rounded-lg text-white font-mono text-sm placeholder-secondary-500 focus:outline-none focus:ring-2 focus:ring-primary-500 focus:border-transparent"
+              placeholder="https://api.staging.example.com"
+            />
+            <p className="mt-1 text-xs text-secondary-500">
+              The base URL where tests will be executed against
+            </p>
+          </div>
+        </div>
+      </section>
+
+      {/* Save/Cancel Buttons */}
+      {hasChanges && (
+        <div className="flex justify-end gap-3">
+          <button
+            onClick={handleCancel}
+            className="btn btn-ghost"
+            disabled={updatePackage.isPending}
+          >
+            Cancel
+          </button>
+          <button
+            onClick={handleSave}
+            className="btn btn-primary disabled:opacity-50"
+            disabled={updatePackage.isPending || !formData.name?.trim()}
+          >
+            {updatePackage.isPending ? 'Saving...' : 'Save Changes'}
+          </button>
+        </div>
+      )}
+
+      {/* Success/Error Messages */}
+      {updatePackage.isSuccess && !hasChanges && (
+        <div className="p-3 bg-green-500/10 border border-green-500/30 rounded-lg">
+          <p className="text-green-500 text-sm">Settings saved successfully.</p>
+        </div>
+      )}
+
+      {updatePackage.isError && (
+        <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg">
+          <p className="text-red-500 text-sm">
+            Failed to save settings. Please try again.
+          </p>
+        </div>
+      )}
+
+      {/* Danger Zone */}
+      <section className="card border-red-500/30">
+        <h3 className="text-lg font-semibold text-red-500 mb-4">Danger Zone</h3>
+        <div className="p-4 bg-red-500/5 border border-red-500/20 rounded-lg">
+          <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+            <div>
+              <h4 className="font-medium text-white">Delete Package</h4>
+              <p className="text-sm text-secondary-400 mt-1">
+                Permanently delete this package and all its scenarios and run history.
+              </p>
+            </div>
+            <button
+              onClick={() => { setShowDeleteConfirm(true) }}
+              className="btn bg-red-500/10 text-red-500 border border-red-500/30 hover:bg-red-500/20 whitespace-nowrap"
+            >
+              Delete Package
+            </button>
+          </div>
+        </div>
+      </section>
+
+      {/* Delete Confirmation Modal */}
+      {showDeleteConfirm && (
+        <div className="fixed inset-0 bg-black/60 flex items-center justify-center z-50 p-4">
+          <div className="bg-secondary-800 rounded-xl max-w-md w-full p-6 border border-secondary-700">
+            <h3 className="text-lg font-semibold text-white mb-2">Delete Package</h3>
+            <p className="text-secondary-400 text-sm mb-4">
+              Are you sure you want to delete <span className="text-white font-medium">{pkg.name}</span>?
+              This will permanently delete:
+            </p>
+            <ul className="text-secondary-400 text-sm mb-4 list-disc list-inside space-y-1">
+              <li>All test scenarios</li>
+              <li>All run history records</li>
+              <li>All associated coverage data</li>
+            </ul>
+            <div className="p-3 bg-red-500/10 border border-red-500/30 rounded-lg mb-4">
+              <p className="text-red-400 text-sm">This action cannot be undone.</p>
+            </div>
+            <div className="mb-4">
+              <label htmlFor="deleteConfirm" className="block text-sm text-secondary-400 mb-1">
+                Type <span className="text-white font-mono">{pkg.name}</span> to confirm:
+              </label>
+              <input
+                id="deleteConfirm"
+                type="text"
+                value={deleteConfirmation}
+                onChange={(e) => { setDeleteConfirmation(e.target.value) }}
+                className="w-full px-3 py-2 bg-secondary-900 border border-secondary-700 rounded-lg text-white placeholder-secondary-500 focus:outline-none focus:ring-2 focus:ring-red-500 focus:border-transparent"
+                placeholder="Enter package name"
+              />
+            </div>
+            <div className="flex justify-end gap-3">
+              <button
+                onClick={() => {
+                  setShowDeleteConfirm(false)
+                  setDeleteConfirmation('')
+                }}
+                className="btn btn-ghost"
+              >
+                Cancel
+              </button>
+              <button
+                onClick={handleDelete}
+                disabled={deleteConfirmation !== pkg.name || deletePackage.isPending}
+                className="btn bg-red-500 text-white hover:bg-red-600 disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                {deletePackage.isPending ? 'Deleting...' : 'Delete Package'}
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+    </div>
+  )
+}
+
+function PackageDetailSkeleton() {
+  return (
+    <div className="package-detail-page">
+      <div className="mb-8">
+        <Skeleton className="h-4 w-40 mb-4" />
+        <div className="flex justify-between items-center">
+          <div>
+            <Skeleton className="h-8 w-64 mb-2" />
+            <Skeleton className="h-4 w-96" />
+          </div>
+          <div className="flex gap-2">
+            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-24" />
+          </div>
+        </div>
+      </div>
+
+      <Skeleton className="h-40 mb-6" />
+      <Skeleton className="h-10 w-64 mb-6" />
+      <div className="space-y-3">
+        <Skeleton className="h-20" />
+        <Skeleton className="h-20" />
+        <Skeleton className="h-20" />
+      </div>
+    </div>
+  )
+}
+
+function formatDate(dateString: string): string {
+  const date = new Date(dateString)
+  return date.toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric',
+    hour: '2-digit',
+    minute: '2-digit',
+  })
 }
