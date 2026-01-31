@@ -30,7 +30,7 @@ function NotFoundComponent() {
         </p>
         <div className="mt-6 flex gap-4 justify-center">
           <button
-            onClick={() => router.history.back()}
+            onClick={() => { router.history.back() }}
             className="rounded-lg bg-gray-200 px-6 py-2 text-gray-700 transition hover:bg-gray-300"
           >
             Go Back

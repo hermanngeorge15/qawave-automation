@@ -88,7 +88,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
 
         setIsLoading(false)
       })
-      .catch((error) => {
+      .catch((error: unknown) => {
         console.error('Keycloak initialization failed:', error)
         setIsLoading(false)
       })
@@ -104,7 +104,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
         })
         .catch(() => {
           console.error('Token refresh failed, logging out')
-          kc.logout()
+          void kc.logout()
         })
     }
 
@@ -134,14 +134,14 @@ export function AuthProvider({ children }: AuthProviderProps) {
   // Login handler
   const login = useCallback(() => {
     if (keycloak) {
-      keycloak.login()
+      void keycloak.login()
     }
   }, [keycloak])
 
   // Logout handler
   const logout = useCallback(() => {
     if (keycloak) {
-      keycloak.logout({
+      void keycloak.logout({
         redirectUri: window.location.origin,
       })
     }
@@ -180,6 +180,7 @@ export function AuthProvider({ children }: AuthProviderProps) {
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>
 }
 
+// eslint-disable-next-line react-refresh/only-export-components
 export function useAuthContext(): AuthContextType {
   const context = useContext(AuthContext)
   if (!context) {

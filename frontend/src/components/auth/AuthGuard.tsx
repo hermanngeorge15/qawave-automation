@@ -16,11 +16,13 @@ export function AuthGuard({ children, roles }: AuthGuardProps) {
   useEffect(() => {
     if (!isLoading && !isAuthenticated) {
       // Store the return URL in sessionStorage for after login
-      sessionStorage.setItem('returnUrl', location.pathname + location.search)
+      // TanStack Router's location.search is an object, use window.location.search for the string
+      const searchString = window.location.search
+      sessionStorage.setItem('returnUrl', location.pathname + searchString)
       // Trigger Keycloak login
       login()
     }
-  }, [isLoading, isAuthenticated, location.pathname, location.search, login])
+  }, [isLoading, isAuthenticated, location.pathname, login])
 
   useEffect(() => {
     if (!isLoading && isAuthenticated && roles && roles.length > 0 && !hasAnyRole(roles)) {
@@ -60,6 +62,7 @@ export function AuthGuard({ children, roles }: AuthGuardProps) {
 }
 
 // Higher-order component for protecting routes
+// eslint-disable-next-line react-refresh/only-export-components
 export function withAuthGuard<P extends object>(
   WrappedComponent: React.ComponentType<P>,
   roles?: string[]
