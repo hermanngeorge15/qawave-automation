@@ -67,6 +67,14 @@ dependencies {
     // Observability
     implementation("io.micrometer:micrometer-registry-prometheus")
 
+    // Structured Logging (JSON)
+    implementation("net.logstash.logback:logstash-logback-encoder:7.4")
+
+    // OpenTelemetry for distributed tracing
+    implementation("io.micrometer:micrometer-tracing-bridge-otel")
+    implementation("io.opentelemetry:opentelemetry-exporter-otlp")
+    runtimeOnly("io.opentelemetry:opentelemetry-exporter-zipkin")
+
     // Security - OAuth2 Resource Server for Keycloak
     implementation("org.springframework.boot:spring-boot-starter-oauth2-resource-server")
     implementation("org.springframework.security:spring-security-oauth2-jose")
