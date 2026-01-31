@@ -1,8 +1,8 @@
+import { useState, useCallback } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { useCallback, useState } from 'react'
 import { runsApi } from '@/api'
-import { StatusBadge, Skeleton, Collapsible, JsonViewer, CopyButton, ExportDropdown } from '@/components/ui'
+import { StatusBadge, Skeleton, Collapsible, JsonViewer, CopyButton, ExportDropdown, RetryFailedDialog } from '@/components/ui'
 import type { ExportFormat } from '@/components/ui'
 import type { ScenarioResult, StepResult, TestRun } from '@/api/types'
 
@@ -12,6 +12,8 @@ export const Route = createFileRoute('/_app/runs/$runId')({
 
 function RunDetailPage() {
   const { runId } = Route.useParams()
+  const [showRetryFailedDialog, setShowRetryFailedDialog] = useState(false)
+  const [exportError, setExportError] = useState<string | null>(null)
 
   // Fetch run data with polling for active runs
   const { data: run, isLoading, isError, error } = useQuery({
@@ -41,8 +43,6 @@ function RunDetailPage() {
     },
   })
 
-  const [exportError, setExportError] = useState<string | null>(null)
-
   const handleExport = useCallback(
     async (format: ExportFormat) => {
       setExportError(null)
@@ -63,6 +63,15 @@ function RunDetailPage() {
     },
     [runId]
   )
+
+  const retryFailedMutation = useMutation({
+    mutationFn: (scenarioIds: string[]) => runsApi.retryFailed(runId, scenarioIds),
+    onSuccess: (newRun: TestRun) => {
+      void queryClient.invalidateQueries({ queryKey: ['runs'] })
+      void queryClient.setQueryData(['runs', 'detail', newRun.id], newRun)
+      setShowRetryFailedDialog(false)
+    },
+  })
 
   if (isLoading) {
     return <RunDetailSkeleton />
@@ -85,6 +94,8 @@ function RunDetailPage() {
   const duration = run.completedAt && run.startedAt
     ? Math.round((new Date(run.completedAt).getTime() - new Date(run.startedAt).getTime()) / 1000)
     : null
+  const failedScenarios = run.scenarioResults.filter((s) => s.status === 'FAILED')
+  const hasFailedScenarios = failedScenarios.length > 0
 
   return (
     <div className="run-detail-page">
@@ -128,6 +139,16 @@ function RunDetailPage() {
                 className="btn btn-danger disabled:opacity-50"
               >
                 {cancelRun.isPending ? 'Cancelling...' : 'Cancel Run'}
+              </button>
+            )}
+            {canRetry && hasFailedScenarios && (
+              <button
+                onClick={() => {
+                  setShowRetryFailedDialog(true)
+                }}
+                className="btn btn-secondary"
+              >
+                Retry Failed
               </button>
             )}
             {canRetry && (
@@ -218,6 +239,19 @@ function RunDetailPage() {
           </div>
         )}
       </section>
+
+      {/* Retry Failed Dialog */}
+      <RetryFailedDialog
+        isOpen={showRetryFailedDialog}
+        onClose={() => {
+          setShowRetryFailedDialog(false)
+        }}
+        onConfirm={async (scenarioIds) => {
+          await retryFailedMutation.mutateAsync(scenarioIds)
+        }}
+        failedScenarios={failedScenarios}
+        isLoading={retryFailedMutation.isPending}
+      />
     </div>
   )
 }

@@ -38,7 +38,7 @@ export const runsApi = {
   },
 
   /**
-   * Retry a failed test run
+   * Retry a failed test run (all scenarios)
    */
   retry(id: string): Promise<TestRun> {
     return apiClient.post<TestRun>(`${BASE_PATH}/${id}/retry`)
@@ -60,6 +60,15 @@ export const runsApi = {
     }
 
     return response.blob()
+  },
+
+  /**
+   * Retry only failed scenarios from a test run
+   */
+  retryFailed(id: string, scenarioIds?: string[]): Promise<TestRun> {
+    return apiClient.post<TestRun>(`${BASE_PATH}/${id}/retry-failed`, {
+      scenarioIds,
+    })
   },
 }
 
