@@ -21,7 +21,6 @@ import org.springframework.context.annotation.Configuration
     matchIfMissing = true,
 )
 class TracingConfig {
-
     /**
      * Enables @Observed annotation support for creating custom spans.
      */

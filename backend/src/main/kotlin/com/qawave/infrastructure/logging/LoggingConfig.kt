@@ -10,25 +10,27 @@ data class LoggingConfig(
     /** Enable request/response logging. */
     val requestLogging: RequestLoggingConfig = RequestLoggingConfig(),
     /** Headers to redact from logs. */
-    val redactedHeaders: List<String> = listOf(
-        "Authorization",
-        "Cookie",
-        "Set-Cookie",
-        "X-API-Key",
-        "X-Auth-Token",
-    ),
+    val redactedHeaders: List<String> =
+        listOf(
+            "Authorization",
+            "Cookie",
+            "Set-Cookie",
+            "X-API-Key",
+            "X-Auth-Token",
+        ),
     /** JSON fields to redact from request/response bodies. */
-    val redactedFields: List<String> = listOf(
-        "password",
-        "secret",
-        "token",
-        "apiKey",
-        "api_key",
-        "credentials",
-        "credit_card",
-        "creditCard",
-        "ssn",
-    ),
+    val redactedFields: List<String> =
+        listOf(
+            "password",
+            "secret",
+            "token",
+            "apiKey",
+            "api_key",
+            "credentials",
+            "credit_card",
+            "creditCard",
+            "ssn",
+        ),
 )
 
 data class RequestLoggingConfig(
@@ -41,11 +43,12 @@ data class RequestLoggingConfig(
     /** Maximum body size to log (bytes). */
     val maxBodySize: Int = 4096,
     /** Paths to exclude from logging. */
-    val excludedPaths: List<String> = listOf(
-        "/actuator",
-        "/health",
-        "/ready",
-        "/api-docs",
-        "/swagger-ui",
-    ),
+    val excludedPaths: List<String> =
+        listOf(
+            "/actuator",
+            "/health",
+            "/ready",
+            "/api-docs",
+            "/swagger-ui",
+        ),
 )
