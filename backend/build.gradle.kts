@@ -70,6 +70,7 @@ dependencies {
 
     // Observability
     implementation("io.micrometer:micrometer-registry-prometheus")
+    implementation("org.springframework.boot:spring-boot-starter-aop")
 
     // Structured Logging (JSON)
     implementation("net.logstash.logback:logstash-logback-encoder:7.4")
