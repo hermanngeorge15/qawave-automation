@@ -1,0 +1,81 @@
+# HorizontalPodAutoscaler for QAWave Backend
+# Scales based on CPU, memory, and custom metrics
+#
+# Scaling behavior:
+#   - Min replicas: 2 (HA)
+#   - Max replicas: 10
+#   - Scale up: 60s stabilization
+#   - Scale down: 300s stabilization (prevent flapping)
+
+apiVersion: autoscaling/v2
+kind: HorizontalPodAutoscaler
+metadata:
+  name: qawave-backend-hpa
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/component: hpa
+    app.kubernetes.io/part-of: qawave
+spec:
+  scaleTargetRef:
+    apiVersion: apps/v1
+    kind: Deployment
+    name: backend
+  minReplicas: 2
+  maxReplicas: 10
+
+  metrics:
+    # CPU-based scaling
+    - type: Resource
+      resource:
+        name: cpu
+        target:
+          type: Utilization
+          averageUtilization: 70
+
+    # Memory-based scaling
+    - type: Resource
+      resource:
+        name: memory
+        target:
+          type: Utilization
+          averageUtilization: 80
+
+    # Custom metric: requests per second (if available)
+    # Requires prometheus-adapter
+    # - type: Pods
+    #   pods:
+    #     metric:
+    #       name: http_requests_per_second
+    #     target:
+    #       type: AverageValue
+    #       averageValue: "100"
+
+  behavior:
+    # Scale up behavior
+    scaleUp:
+      stabilizationWindowSeconds: 60
+      policies:
+        # Scale up 100% of current replicas every 60s
+        - type: Percent
+          value: 100
+          periodSeconds: 60
+        # Or scale up 4 pods every 60s (whichever is higher)
+        - type: Pods
+          value: 4
+          periodSeconds: 60
+      selectPolicy: Max
+
+    # Scale down behavior (more conservative)
+    scaleDown:
+      stabilizationWindowSeconds: 300
+      policies:
+        # Scale down 25% of current replicas every 60s
+        - type: Percent
+          value: 25
+          periodSeconds: 60
+        # Or scale down 2 pods every 60s (whichever is lower)
+        - type: Pods
+          value: 2
+          periodSeconds: 60
+      selectPolicy: Min

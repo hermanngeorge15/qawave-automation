@@ -1,0 +1,110 @@
+# Pod Disruption Budgets for QAWave
+# Ensures minimum availability during voluntary disruptions
+# (node drains, rolling updates, cluster upgrades)
+
+---
+# Backend PDB - Always keep at least 1 pod available
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: backend-pdb
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: backend
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: qawave
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: backend
+      app.kubernetes.io/part-of: qawave
+
+---
+# Frontend PDB - Always keep at least 1 pod available
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: frontend-pdb
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: frontend
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: qawave
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: frontend
+      app.kubernetes.io/part-of: qawave
+
+---
+# Keycloak PDB - Always keep at least 1 pod available
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: keycloak-pdb
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: keycloak
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: qawave
+spec:
+  minAvailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: keycloak
+
+---
+# PostgreSQL PDB - StatefulSet must always have availability
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: postgresql-pdb
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: postgresql
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: qawave
+spec:
+  # For single replica, allow 0 disruptions
+  # For multi-replica, use minAvailable: 1
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: postgresql
+
+---
+# Redis PDB
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: redis-pdb
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: redis
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: qawave
+spec:
+  maxUnavailable: 0
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: redis
+
+---
+# Kafka PDB - Maintain quorum
+apiVersion: policy/v1
+kind: PodDisruptionBudget
+metadata:
+  name: kafka-pdb
+  namespace: qawave
+  labels:
+    app.kubernetes.io/name: kafka
+    app.kubernetes.io/component: pdb
+    app.kubernetes.io/part-of: qawave
+spec:
+  # For 3-node Kafka cluster, allow 1 unavailable
+  maxUnavailable: 1
+  selector:
+    matchLabels:
+      app.kubernetes.io/name: kafka
