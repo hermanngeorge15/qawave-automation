@@ -1,16 +1,18 @@
-import { useState } from 'react'
+import { useState, useMemo } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { usePackage, usePackageScenarios, usePackageRuns, useStartRun, useGenerateScenarios } from '@/hooks'
-import { StatusBadge, Skeleton } from '@/components/ui'
-import type { Scenario, TestRun } from '@/api/types'
+import { StatusBadge, Skeleton, EmptyState } from '@/components/ui'
+import type { Scenario, TestRun, HttpMethod } from '@/api/types'
 
 export const Route = createFileRoute('/_app/packages/$packageId')({
   component: PackageDetailPage,
 })
 
+type TabId = 'scenarios' | 'runs' | 'coverage'
+
 function PackageDetailPage() {
   const { packageId } = Route.useParams()
-  const [activeTab, setActiveTab] = useState<'scenarios' | 'runs'>('scenarios')
+  const [activeTab, setActiveTab] = useState<TabId>('scenarios')
 
   const { data: pkg, isLoading, isError, error } = usePackage(packageId)
   const { data: scenarios, isLoading: scenariosLoading } = usePackageScenarios(packageId)
@@ -124,38 +126,36 @@ function PackageDetailPage() {
       {/* Tabs */}
       <div className="border-b border-secondary-700 mb-6">
         <nav className="flex gap-4">
-          <button
-            onClick={() => {
-              setActiveTab('scenarios')
-            }}
-            className={`pb-3 px-1 border-b-2 transition-colors ${
-              activeTab === 'scenarios'
-                ? 'border-primary-500 text-white'
-                : 'border-transparent text-secondary-400 hover:text-white'
-            }`}
-          >
-            Scenarios ({scenarios?.totalElements ?? 0})
-          </button>
-          <button
-            onClick={() => {
-              setActiveTab('runs')
-            }}
-            className={`pb-3 px-1 border-b-2 transition-colors ${
-              activeTab === 'runs'
-                ? 'border-primary-500 text-white'
-                : 'border-transparent text-secondary-400 hover:text-white'
-            }`}
-          >
-            Test Runs ({runs?.totalElements ?? 0})
-          </button>
+          <TabButton
+            id="scenarios"
+            label={`Scenarios (${String(scenarios?.totalElements ?? 0)})`}
+            activeTab={activeTab}
+            onClick={setActiveTab}
+          />
+          <TabButton
+            id="runs"
+            label={`Test Runs (${String(runs?.totalElements ?? 0)})`}
+            activeTab={activeTab}
+            onClick={setActiveTab}
+          />
+          <TabButton
+            id="coverage"
+            label="Coverage"
+            activeTab={activeTab}
+            onClick={setActiveTab}
+          />
         </nav>
       </div>
 
       {/* Tab Content */}
-      {activeTab === 'scenarios' ? (
+      {activeTab === 'scenarios' && (
         <ScenariosTab scenarios={scenarios?.content ?? []} isLoading={scenariosLoading} />
-      ) : (
+      )}
+      {activeTab === 'runs' && (
         <RunsTab runs={runs?.content ?? []} isLoading={runsLoading} packageId={packageId} />
+      )}
+      {activeTab === 'coverage' && (
+        <CoverageTab scenarios={scenarios?.content ?? []} isLoading={scenariosLoading} />
       )}
     </div>
   )
@@ -355,4 +355,246 @@ function formatDate(dateString: string): string {
     hour: '2-digit',
     minute: '2-digit',
   })
+}
+
+function TabButton({
+  id,
+  label,
+  activeTab,
+  onClick,
+}: {
+  id: TabId
+  label: string
+  activeTab: TabId
+  onClick: (tab: TabId) => void
+}) {
+  const isActive = activeTab === id
+  return (
+    <button
+      onClick={() => { onClick(id) }}
+      className={`pb-3 px-1 border-b-2 transition-colors ${
+        isActive
+          ? 'border-primary-500 text-white'
+          : 'border-transparent text-secondary-400 hover:text-white'
+      }`}
+    >
+      {label}
+    </button>
+  )
+}
+
+// HTTP Method colors for coverage display
+const HTTP_METHOD_COLORS: Record<HttpMethod, string> = {
+  GET: 'bg-green-500/10 text-green-400 border-green-500/30',
+  POST: 'bg-blue-500/10 text-blue-400 border-blue-500/30',
+  PUT: 'bg-yellow-500/10 text-yellow-400 border-yellow-500/30',
+  PATCH: 'bg-orange-500/10 text-orange-400 border-orange-500/30',
+  DELETE: 'bg-red-500/10 text-red-400 border-red-500/30',
+}
+
+type CoverageStatus = 'covered' | 'failing' | 'missing'
+
+interface EndpointCoverage {
+  endpoint: string
+  method: HttpMethod
+  status: CoverageStatus
+  scenarioCount: number
+  scenarioIds: string[]
+}
+
+function CoverageTab({ scenarios, isLoading }: { scenarios: Scenario[]; isLoading: boolean }) {
+  // Calculate coverage from scenarios
+  const coverage = useMemo(() => {
+    if (scenarios.length === 0) {
+      return {
+        endpoints: [] as EndpointCoverage[],
+        covered: 0,
+        failing: 0,
+        missing: 0,
+        total: 0,
+        percentage: 0,
+      }
+    }
+
+    // Extract unique endpoints from all scenarios
+    const endpointMap = new Map<string, EndpointCoverage>()
+
+    scenarios.forEach((scenario) => {
+      scenario.steps.forEach((step) => {
+        const key = `${step.method}:${step.endpoint}`
+        const existing = endpointMap.get(key)
+
+        // Determine status based on scenario status
+        const isPassing = scenario.status === 'PASSED'
+        const isFailing = scenario.status === 'FAILED'
+
+        if (existing) {
+          existing.scenarioCount++
+          existing.scenarioIds.push(scenario.id)
+          // If any scenario is passing, mark as covered; else if failing, mark as failing
+          if (isPassing && existing.status !== 'covered') {
+            existing.status = 'covered'
+          } else if (isFailing && existing.status === 'missing') {
+            existing.status = 'failing'
+          }
+        } else {
+          endpointMap.set(key, {
+            endpoint: step.endpoint,
+            method: step.method,
+            status: isPassing ? 'covered' : isFailing ? 'failing' : 'missing',
+            scenarioCount: 1,
+            scenarioIds: [scenario.id],
+          })
+        }
+      })
+    })
+
+    const endpoints = Array.from(endpointMap.values())
+    const covered = endpoints.filter((e) => e.status === 'covered').length
+    const failing = endpoints.filter((e) => e.status === 'failing').length
+    const missing = endpoints.filter((e) => e.status === 'missing').length
+    const total = endpoints.length
+    const percentage = total > 0 ? Math.round((covered / total) * 100) : 0
+
+    // Sort: failing first, then covered, then missing
+    endpoints.sort((a, b) => {
+      const order: Record<CoverageStatus, number> = { failing: 0, covered: 1, missing: 2 }
+      return order[a.status] - order[b.status]
+    })
+
+    return { endpoints, covered, failing, missing, total, percentage }
+  }, [scenarios])
+
+  if (isLoading) {
+    return (
+      <div className="space-y-4">
+        <Skeleton className="h-32" />
+        <Skeleton className="h-64" />
+      </div>
+    )
+  }
+
+  if (coverage.total === 0) {
+    return (
+      <EmptyState
+        title="No coverage data"
+        description="Generate scenarios to see API coverage information"
+        icon={
+          <svg className="w-full h-full" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path
+              strokeLinecap="round"
+              strokeLinejoin="round"
+              strokeWidth={1.5}
+              d="M9 19v-6a2 2 0 00-2-2H5a2 2 0 00-2 2v6a2 2 0 002 2h2a2 2 0 002-2zm0 0V9a2 2 0 012-2h2a2 2 0 012 2v10m-6 0a2 2 0 002 2h2a2 2 0 002-2m0 0V5a2 2 0 012-2h2a2 2 0 012 2v14a2 2 0 01-2 2h-2a2 2 0 01-2-2z"
+            />
+          </svg>
+        }
+      />
+    )
+  }
+
+  return (
+    <div className="space-y-6">
+      {/* Coverage Summary */}
+      <div className="card">
+        <div className="flex items-center justify-between mb-4">
+          <h3 className="text-lg font-semibold text-white">API Coverage</h3>
+          <span className="text-2xl font-bold text-primary-400">{coverage.percentage}%</span>
+        </div>
+
+        {/* Progress Bar */}
+        <div className="h-4 bg-secondary-700 rounded-full overflow-hidden mb-4">
+          <div
+            className="h-full bg-primary-500 rounded-full transition-all duration-500"
+            style={{ width: `${String(coverage.percentage)}%` }}
+          />
+        </div>
+
+        {/* Stats */}
+        <div className="grid grid-cols-3 gap-4 text-center">
+          <div className="p-3 bg-green-500/10 rounded-lg">
+            <div className="text-2xl font-bold text-green-400">{coverage.covered}</div>
+            <div className="text-sm text-secondary-400">Covered</div>
+          </div>
+          <div className="p-3 bg-red-500/10 rounded-lg">
+            <div className="text-2xl font-bold text-red-400">{coverage.failing}</div>
+            <div className="text-sm text-secondary-400">Failing</div>
+          </div>
+          <div className="p-3 bg-secondary-700/50 rounded-lg">
+            <div className="text-2xl font-bold text-secondary-400">{coverage.missing}</div>
+            <div className="text-sm text-secondary-400">Pending</div>
+          </div>
+        </div>
+      </div>
+
+      {/* Endpoint Coverage Table */}
+      <div className="card">
+        <h3 className="text-lg font-semibold text-white mb-4">Endpoint Coverage</h3>
+        <div className="overflow-x-auto">
+          <table className="w-full">
+            <thead>
+              <tr className="text-left text-secondary-400 text-sm border-b border-secondary-700">
+                <th className="pb-3 pr-4">Endpoint</th>
+                <th className="pb-3 px-4">Method</th>
+                <th className="pb-3 px-4">Status</th>
+                <th className="pb-3 pl-4 text-right">Scenarios</th>
+              </tr>
+            </thead>
+            <tbody className="divide-y divide-secondary-700">
+              {coverage.endpoints.map((endpoint, index) => (
+                <tr key={`${endpoint.method}-${endpoint.endpoint}-${String(index)}`} className="hover:bg-secondary-800/50">
+                  <td className="py-3 pr-4">
+                    <span className="font-mono text-white">{endpoint.endpoint}</span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <span className={`px-2 py-1 rounded text-xs font-mono border ${HTTP_METHOD_COLORS[endpoint.method]}`}>
+                      {endpoint.method}
+                    </span>
+                  </td>
+                  <td className="py-3 px-4">
+                    <CoverageStatusBadge status={endpoint.status} />
+                  </td>
+                  <td className="py-3 pl-4 text-right text-secondary-400">
+                    {endpoint.scenarioCount}
+                  </td>
+                </tr>
+              ))}
+            </tbody>
+          </table>
+        </div>
+
+        {/* Legend */}
+        <div className="mt-4 pt-4 border-t border-secondary-700 flex gap-6 text-sm">
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-green-500"></span>
+            <span className="text-secondary-400">Covered (passing)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-red-500"></span>
+            <span className="text-secondary-400">Failing (has tests)</span>
+          </div>
+          <div className="flex items-center gap-2">
+            <span className="w-3 h-3 rounded-full bg-secondary-500"></span>
+            <span className="text-secondary-400">Pending (no status)</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+function CoverageStatusBadge({ status }: { status: CoverageStatus }) {
+  const config: Record<CoverageStatus, { label: string; color: string }> = {
+    covered: { label: 'Covered', color: 'bg-green-500/10 text-green-400' },
+    failing: { label: 'Failing', color: 'bg-red-500/10 text-red-400' },
+    missing: { label: 'Pending', color: 'bg-secondary-500/10 text-secondary-400' },
+  }
+
+  const { label, color } = config[status]
+
+  return (
+    <span className={`px-2 py-1 rounded text-xs font-medium ${color}`}>
+      {label}
+    </span>
+  )
 }
