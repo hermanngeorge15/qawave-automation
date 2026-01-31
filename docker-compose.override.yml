@@ -1,0 +1,81 @@
+# ==============================================================================
+# QAWave Development Overrides
+# ==============================================================================
+# This file is automatically merged with docker-compose.yml.
+# It contains development-specific overrides like hot reload volume mounts.
+#
+# Usage:
+#   docker compose up -d                    # Uses both files
+#   docker compose -f docker-compose.yml up -d  # Skip overrides
+# ==============================================================================
+
+services:
+  # Backend with hot reload (for dev mode with gradlew bootRun)
+  # Note: This is for when running backend in container but still want to
+  # edit source code locally. For true hot reload, run backend locally.
+  backend:
+    environment:
+      # Enable Spring DevTools
+      SPRING_DEVTOOLS_RESTART_ENABLED: true
+      SPRING_DEVTOOLS_LIVERELOAD_ENABLED: true
+    volumes:
+      # Mount source for hot reload (requires Spring DevTools)
+      - ./backend/src:/app/src:ro
+      # Mount build output for faster restarts
+      - ./backend/build:/app/build:cached
+    # Enable debugger
+    ports:
+      - "8080:8080"
+      - "5005:5005"  # Debug port
+    # Add debug agent
+    environment:
+      JAVA_OPTS: >-
+        -Xms256m -Xmx512m
+        -XX:+UseG1GC
+        -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
+
+  # Frontend with hot reload (Vite dev server)
+  # For development, prefer running frontend locally with npm run dev
+  frontend:
+    build:
+      target: development  # Use development stage if available
+    volumes:
+      # Mount source for hot reload
+      - ./frontend/src:/app/src:cached
+      - ./frontend/public:/app/public:cached
+      # Exclude node_modules from sync (use container's version)
+      - /app/node_modules
+    environment:
+      NODE_ENV: development
+      # Vite dev server settings
+      VITE_HOST: "0.0.0.0"
+      VITE_PORT: "5173"
+    command: npm run dev -- --host 0.0.0.0
+    # Use container port directly for Vite HMR
+    ports:
+      - "5173:5173"
+
+  # E2E tests (development mode with headed browser)
+  e2e:
+    build:
+      context: ./e2e-tests
+      dockerfile: Dockerfile
+    container_name: qawave-e2e
+    environment:
+      BASE_URL: http://frontend:5173
+      API_URL: http://backend:8080
+      HEADLESS: "false"
+    volumes:
+      - ./e2e-tests/src:/app/src:cached
+      - ./e2e-tests/tests:/app/tests:cached
+      - ./e2e-tests/playwright-report:/app/playwright-report
+      - ./e2e-tests/test-results:/app/test-results
+    depends_on:
+      backend:
+        condition: service_healthy
+      frontend:
+        condition: service_healthy
+    networks:
+      - qawave-network
+    profiles:
+      - e2e
