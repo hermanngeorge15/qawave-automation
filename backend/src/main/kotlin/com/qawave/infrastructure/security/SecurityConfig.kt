@@ -65,6 +65,7 @@ class SecurityConfig(
                 "/swagger-ui.html",
                 "/webjars/**",
                 "/v3/api-docs/**",
+                "/api/shared/**", // Shared run links (public access)
             )
 
         /**
