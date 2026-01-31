@@ -14,11 +14,11 @@ The QAWave application has made **significant security improvements** since the 
 
 | Severity | Count | Fixed | Remaining |
 |----------|-------|-------|-----------|
-| CRITICAL | 5 | 3 | 2 |
+| CRITICAL | 5 | 4 | 1 |
 | HIGH | 5 | 2 | 3 |
 | MEDIUM | 5 | 1 | 4 |
 
-**Current Status**: Major authentication vulnerabilities fixed. Rate limiting and security headers still needed.
+**Current Status**: 4 of 5 critical issues fixed. Only API key handling remains critical. Security headers and Swagger protection needed.
 
 ---
 
@@ -31,6 +31,7 @@ The QAWave application has made **significant security improvements** since the 
 | CRIT-001 | No Authentication | :white_check_mark: FIXED | PR #257 - JWT + Keycloak |
 | CRIT-002 | Token in Memory | :white_check_mark: FIXED | Keycloak adapter with refresh |
 | CRIT-003 | CORS Misconfiguration | :white_check_mark: FIXED | CorsConfig updated |
+| CRIT-005 | No Rate Limiting | :white_check_mark: FIXED | PR #266 - Redis rate limiter |
 | HIGH-003 | Keycloak Not Integrated | :white_check_mark: FIXED | AuthProvider.tsx |
 | HIGH-005 | Auth Endpoints Missing | :white_check_mark: FIXED | Keycloak handles auth |
 | MED-005 | No Logout | :white_check_mark: FIXED | Keycloak logout |
@@ -40,7 +41,7 @@ The QAWave application has made **significant security improvements** since the 
 | ID | Issue | Status | Priority |
 |----|-------|--------|----------|
 | CRIT-004 | API Key in Headers | :warning: OPEN | HIGH |
-| CRIT-005 | No Rate Limiting | :x: OPEN | CRITICAL |
+| CRIT-005 | No Rate Limiting | :white_check_mark: **FIXED** | PR #266 merged |
 | HIGH-001 | Swagger UI Public | :x: OPEN | HIGH |
 | HIGH-002 | No Security Headers | :x: OPEN | HIGH |
 | HIGH-004 | Missing Input Validation | :warning: PARTIAL | MEDIUM |
