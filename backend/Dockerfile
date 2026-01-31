@@ -14,17 +14,16 @@ FROM eclipse-temurin:21-jdk-alpine AS builder
 WORKDIR /app
 
 # Install build dependencies
+# hadolint ignore=DL3018
 RUN apk add --no-cache bash
 
 # Copy Gradle wrapper and build files first (better caching)
 COPY gradle gradle
 COPY gradlew build.gradle.kts settings.gradle.kts gradle.properties ./
 
-# Make gradlew executable
-RUN chmod +x gradlew
-
-# Download dependencies (cached layer)
-RUN ./gradlew dependencies --no-daemon --quiet
+# Make gradlew executable and download dependencies (cached layer)
+RUN chmod +x gradlew && \
+    ./gradlew dependencies --no-daemon --quiet
 
 # Copy source code
 COPY src src
@@ -49,6 +48,7 @@ LABEL org.opencontainers.image.title="QAWave Backend" \
 WORKDIR /app
 
 # Install runtime dependencies and security updates
+# hadolint ignore=DL3018
 RUN apk add --no-cache \
     curl \
     dumb-init \
