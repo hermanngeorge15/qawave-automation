@@ -152,7 +152,7 @@ function PackageDetailPage() {
         <ScenariosTab scenarios={scenarios?.content ?? []} isLoading={scenariosLoading} />
       )}
       {activeTab === 'runs' && (
-        <RunsTab runs={runs?.content ?? []} isLoading={runsLoading} packageId={packageId} />
+        <RunsTab runs={runs?.content ?? []} isLoading={runsLoading} />
       )}
       {activeTab === 'coverage' && (
         <CoverageTab scenarios={scenarios?.content ?? []} isLoading={scenariosLoading} />
@@ -226,11 +226,9 @@ function ScenarioCard({ scenario }: { scenario: Scenario }) {
 function RunsTab({
   runs,
   isLoading,
-  packageId,
 }: {
   runs: TestRun[]
   isLoading: boolean
-  packageId: string
 }) {
   if (isLoading) {
     return (
@@ -270,13 +268,13 @@ function RunsTab({
   return (
     <div className="space-y-3">
       {runs.map((run) => (
-        <RunCard key={run.id} run={run} packageId={packageId} />
+        <RunCard key={run.id} run={run} />
       ))}
     </div>
   )
 }
 
-function RunCard({ run, packageId }: { run: TestRun; packageId: string }) {
+function RunCard({ run }: { run: TestRun }) {
   const statusColors: Record<string, string> = {
     PENDING: 'bg-yellow-500/10 text-yellow-500',
     RUNNING: 'bg-blue-500/10 text-blue-500',
@@ -286,8 +284,8 @@ function RunCard({ run, packageId }: { run: TestRun; packageId: string }) {
 
   return (
     <Link
-      to="/packages/$packageId"
-      params={{ packageId }}
+      to="/runs/$runId"
+      params={{ runId: run.id }}
       className="card block hover:border-primary-500 transition-colors"
     >
       <div className="flex justify-between items-start">
