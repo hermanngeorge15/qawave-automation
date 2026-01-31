@@ -18,6 +18,11 @@ services:
       # Enable Spring DevTools
       SPRING_DEVTOOLS_RESTART_ENABLED: true
       SPRING_DEVTOOLS_LIVERELOAD_ENABLED: true
+      # Debug agent JVM options
+      JAVA_OPTS: >-
+        -Xms256m -Xmx512m
+        -XX:+UseG1GC
+        -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
     volumes:
       # Mount source for hot reload (requires Spring DevTools)
       - ./backend/src:/app/src:ro
@@ -27,12 +32,6 @@ services:
     ports:
       - "8080:8080"
       - "5005:5005"  # Debug port
-    # Add debug agent
-    environment:
-      JAVA_OPTS: >-
-        -Xms256m -Xmx512m
-        -XX:+UseG1GC
-        -agentlib:jdwp=transport=dt_socket,server=y,suspend=n,address=*:5005
 
   # Frontend with hot reload (Vite dev server)
   # For development, prefer running frontend locally with npm run dev
