@@ -11,3 +11,10 @@ export { ExportDropdown } from './ExportDropdown'
 export type { ExportDropdownProps, ExportFormat } from './ExportDropdown'
 export { RetryFailedDialog } from './RetryFailedDialog'
 export type { RetryFailedDialogProps } from './RetryFailedDialog'
+export { OperationCoverageTable } from './OperationCoverageTable'
+export type {
+  OperationCoverageTableProps,
+  OperationCoverage,
+  CoverageStats,
+  CoverageStatus,
+} from './OperationCoverageTable'
