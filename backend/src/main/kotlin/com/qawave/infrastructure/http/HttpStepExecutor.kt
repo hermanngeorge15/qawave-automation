@@ -4,6 +4,8 @@ import com.fasterxml.jackson.databind.JsonNode
 import com.fasterxml.jackson.databind.ObjectMapper
 import com.qawave.application.service.ExecutionContext
 import com.qawave.domain.model.*
+import com.qawave.infrastructure.security.SsrfException
+import com.qawave.infrastructure.security.UrlValidator
 import kotlinx.coroutines.withTimeoutOrNull
 import org.slf4j.LoggerFactory
 import org.springframework.stereotype.Component
@@ -15,11 +17,13 @@ import org.springframework.http.HttpMethod as SpringHttpMethod
 
 /**
  * Executes HTTP requests for test steps using WebClient.
+ * Includes SSRF protection to prevent requests to internal networks.
  */
 @Component
 class HttpStepExecutor(
     private val webClient: WebClient,
     private val objectMapper: ObjectMapper,
+    private val urlValidator: UrlValidator,
 ) {
     private val logger = LoggerFactory.getLogger(HttpStepExecutor::class.java)
 
@@ -37,6 +41,14 @@ class HttpStepExecutor(
 
         try {
             val url = context.resolve("$baseUrl${step.endpoint}")
+
+            // SSRF Protection: Validate URL before making request
+            val validationResult = urlValidator.validate(url)
+            if (!validationResult.isValid) {
+                logger.warn("SSRF attempt blocked for step {}: {}", step.index, validationResult.errorMessage)
+                throw SsrfException("URL validation failed: ${validationResult.errorMessage}")
+            }
+
             val body = step.body?.let { context.resolve(it) }
             val headers = step.headers.mapValues { context.resolve(it.value) }
 
