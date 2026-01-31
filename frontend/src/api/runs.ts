@@ -43,6 +43,24 @@ export const runsApi = {
   retry(id: string): Promise<TestRun> {
     return apiClient.post<TestRun>(`${BASE_PATH}/${id}/retry`)
   },
+
+  /**
+   * Export test run results in specified format
+   */
+  async exportResults(id: string, format: 'json' | 'csv'): Promise<Blob> {
+    const response = await fetch(`${BASE_PATH}/${id}/export?format=${format}`, {
+      method: 'GET',
+      headers: {
+        Accept: format === 'json' ? 'application/json' : 'text/csv',
+      },
+    })
+
+    if (!response.ok) {
+      throw new Error(`Export failed: ${response.statusText}`)
+    }
+
+    return response.blob()
+  },
 }
 
 export default runsApi

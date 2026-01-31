@@ -1,7 +1,9 @@
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
+import { useCallback, useState } from 'react'
 import { runsApi } from '@/api'
-import { StatusBadge, Skeleton, Collapsible, JsonViewer, CopyButton } from '@/components/ui'
+import { StatusBadge, Skeleton, Collapsible, JsonViewer, CopyButton, ExportDropdown } from '@/components/ui'
+import type { ExportFormat } from '@/components/ui'
 import type { ScenarioResult, StepResult, TestRun } from '@/api/types'
 
 export const Route = createFileRoute('/_app/runs/$runId')({
@@ -38,6 +40,29 @@ function RunDetailPage() {
       void queryClient.setQueryData(['runs', 'detail', newRun.id], newRun)
     },
   })
+
+  const [exportError, setExportError] = useState<string | null>(null)
+
+  const handleExport = useCallback(
+    async (format: ExportFormat) => {
+      setExportError(null)
+      try {
+        const blob = await runsApi.exportResults(runId, format)
+        const url = window.URL.createObjectURL(blob)
+        const link = document.createElement('a')
+        link.href = url
+        link.download = `run-${runId.slice(0, 8)}-results.${format}`
+        document.body.appendChild(link)
+        link.click()
+        document.body.removeChild(link)
+        window.URL.revokeObjectURL(url)
+      } catch (err) {
+        setExportError(err instanceof Error ? err.message : 'Export failed')
+        throw err
+      }
+    },
+    [runId]
+  )
 
   if (isLoading) {
     return <RunDetailSkeleton />
@@ -90,6 +115,10 @@ function RunDetailPage() {
           </div>
 
           <div className="flex gap-2">
+            <ExportDropdown
+              onExport={handleExport}
+              disabled={isRunning}
+            />
             {isRunning && (
               <button
                 onClick={() => {
@@ -115,6 +144,24 @@ function RunDetailPage() {
           </div>
         </div>
       </header>
+
+      {/* Export Error */}
+      {exportError && (
+        <div className="mb-4 p-3 bg-red-500/10 border border-red-500/30 rounded-lg flex items-center justify-between">
+          <p className="text-red-500 text-sm">{exportError}</p>
+          <button
+            onClick={() => {
+              setExportError(null)
+            }}
+            className="text-red-500 hover:text-red-400 transition-colors"
+            aria-label="Dismiss error"
+          >
+            <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+            </svg>
+          </button>
+        </div>
+      )}
 
       {/* Summary */}
       <section className="card mb-6">
