@@ -43,12 +43,13 @@ data class ExpectedResult(
 
 /**
  * Matcher for verifying a field value in the response body.
+ * Note: Using kotlin.Any explicitly to avoid confusion with FieldMatcher.Any data object
  */
 sealed class FieldMatcher {
     /**
      * Field should have exactly this value.
      */
-    data class Exact(val value: Any) : FieldMatcher()
+    data class Exact(val value: kotlin.Any) : FieldMatcher()
 
     /**
      * Field can have any value (just needs to exist).
@@ -73,7 +74,7 @@ sealed class FieldMatcher {
     /**
      * Field value should be one of these values.
      */
-    data class OneOf(val values: List<Any>) : FieldMatcher()
+    data class OneOf(val values: List<kotlin.Any>) : FieldMatcher()
 
     /**
      * Field should not be null.
