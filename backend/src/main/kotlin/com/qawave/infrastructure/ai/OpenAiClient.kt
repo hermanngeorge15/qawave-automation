@@ -34,10 +34,11 @@ class OpenAiClient(
 ) : AiClient {
     private val logger = LoggerFactory.getLogger(OpenAiClient::class.java)
 
+    // WebClient without default Authorization header to prevent credential leakage in logs
+    // Authorization is added per-request for security
     private val webClient: WebClient =
         WebClient.builder()
             .baseUrl(baseUrl)
-            .defaultHeader(HttpHeaders.AUTHORIZATION, "Bearer $apiKey")
             .defaultHeader(HttpHeaders.CONTENT_TYPE, MediaType.APPLICATION_JSON_VALUE)
             .build()
 
@@ -49,6 +50,7 @@ class OpenAiClient(
         val response =
             webClient.post()
                 .uri("/v1/chat/completions")
+                .header(HttpHeaders.AUTHORIZATION, "Bearer $apiKey") // Per-request auth for security
                 .bodyValue(openAiRequest)
                 .exchangeToMono { clientResponse ->
                     handleResponse(clientResponse)
@@ -67,6 +69,7 @@ class OpenAiClient(
             val responseFlow =
                 webClient.post()
                     .uri("/v1/chat/completions")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer $apiKey") // Per-request auth for security
                     .bodyValue(openAiRequest)
                     .retrieve()
                     .bodyToFlow<String>()
@@ -94,6 +97,7 @@ class OpenAiClient(
             val response =
                 webClient.get()
                     .uri("/v1/models")
+                    .header(HttpHeaders.AUTHORIZATION, "Bearer $apiKey") // Per-request auth for security
                     .retrieve()
                     .toBodilessEntity()
                     .awaitFirst()
