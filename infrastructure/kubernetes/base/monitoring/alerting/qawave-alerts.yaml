@@ -1,0 +1,191 @@
+# PrometheusRule for QAWave Application Alerts
+# Monitors backend, frontend, and business metrics
+
+apiVersion: monitoring.coreos.com/v1
+kind: PrometheusRule
+metadata:
+  name: qawave-application-alerts
+  namespace: monitoring
+  labels:
+    app: kube-prometheus-stack
+    release: kube-prometheus-stack
+    app.kubernetes.io/part-of: qawave
+spec:
+  groups:
+    # Backend Service Alerts
+    - name: qawave.backend
+      interval: 30s
+      rules:
+        # Backend is down
+        - alert: QAWaveBackendDown
+          expr: up{job="qawave-backend"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            service: backend
+          annotations:
+            summary: "QAWave Backend is down"
+            description: "QAWave Backend has been down for more than 2 minutes."
+            runbook_url: "https://docs.qawave.io/runbooks/backend-down"
+
+        # High error rate
+        - alert: QAWaveBackendHighErrorRate
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{job="qawave-backend", status=~"5.."}[5m]))
+              /
+              sum(rate(http_server_requests_seconds_count{job="qawave-backend"}[5m]))
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            service: backend
+          annotations:
+            summary: "High error rate on QAWave Backend"
+            description: "Error rate is {{ $value | humanizePercentage }} (threshold: 5%)"
+
+        # Critical error rate
+        - alert: QAWaveBackendCriticalErrorRate
+          expr: |
+            (
+              sum(rate(http_server_requests_seconds_count{job="qawave-backend", status=~"5.."}[5m]))
+              /
+              sum(rate(http_server_requests_seconds_count{job="qawave-backend"}[5m]))
+            ) > 0.10
+          for: 2m
+          labels:
+            severity: critical
+            service: backend
+          annotations:
+            summary: "Critical error rate on QAWave Backend"
+            description: "Error rate is {{ $value | humanizePercentage }} (threshold: 10%)"
+
+        # High latency
+        - alert: QAWaveBackendHighLatency
+          expr: |
+            histogram_quantile(0.95,
+              sum(rate(http_server_requests_seconds_bucket{job="qawave-backend"}[5m])) by (le)
+            ) > 2
+          for: 5m
+          labels:
+            severity: warning
+            service: backend
+          annotations:
+            summary: "High latency on QAWave Backend"
+            description: "P95 latency is {{ $value | humanizeDuration }} (threshold: 2s)"
+
+        # Memory pressure
+        - alert: QAWaveBackendHighMemory
+          expr: |
+            (
+              jvm_memory_used_bytes{job="qawave-backend", area="heap"}
+              /
+              jvm_memory_max_bytes{job="qawave-backend", area="heap"}
+            ) > 0.85
+          for: 10m
+          labels:
+            severity: warning
+            service: backend
+          annotations:
+            summary: "High memory usage on QAWave Backend"
+            description: "Heap memory usage is {{ $value | humanizePercentage }}"
+
+        # Database connection pool exhausted
+        - alert: QAWaveBackendDBPoolExhausted
+          expr: |
+            r2dbc_pool_acquired{job="qawave-backend"}
+            /
+            r2dbc_pool_max_allocated{job="qawave-backend"} > 0.9
+          for: 5m
+          labels:
+            severity: warning
+            service: backend
+          annotations:
+            summary: "Database connection pool nearly exhausted"
+            description: "Connection pool usage is {{ $value | humanizePercentage }}"
+
+    # Frontend Alerts
+    - name: qawave.frontend
+      interval: 30s
+      rules:
+        - alert: QAWaveFrontendDown
+          expr: up{job="qawave-frontend"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            service: frontend
+          annotations:
+            summary: "QAWave Frontend is down"
+            description: "QAWave Frontend has been down for more than 2 minutes."
+
+        - alert: QAWaveFrontendHighErrorRate
+          expr: |
+            (
+              sum(rate(nginx_http_requests_total{job="qawave-frontend", status=~"5.."}[5m]))
+              /
+              sum(rate(nginx_http_requests_total{job="qawave-frontend"}[5m]))
+            ) > 0.05
+          for: 5m
+          labels:
+            severity: warning
+            service: frontend
+          annotations:
+            summary: "High error rate on QAWave Frontend"
+            description: "Error rate is {{ $value | humanizePercentage }}"
+
+    # Keycloak Alerts
+    - name: qawave.keycloak
+      interval: 30s
+      rules:
+        - alert: KeycloakDown
+          expr: up{job="keycloak"} == 0
+          for: 2m
+          labels:
+            severity: critical
+            service: keycloak
+          annotations:
+            summary: "Keycloak is down"
+            description: "Keycloak authentication server has been down for more than 2 minutes."
+
+        - alert: KeycloakHighLoginFailures
+          expr: |
+            sum(rate(keycloak_login_error_total[5m]))
+            /
+            sum(rate(keycloak_login_total[5m])) > 0.1
+          for: 5m
+          labels:
+            severity: warning
+            service: keycloak
+          annotations:
+            summary: "High login failure rate on Keycloak"
+            description: "Login failure rate is {{ $value | humanizePercentage }}"
+
+    # Business Metrics Alerts
+    - name: qawave.business
+      interval: 1m
+      rules:
+        - alert: QAWaveNoTestRunsCreated
+          expr: |
+            sum(increase(qawave_test_runs_created_total[1h])) == 0
+          for: 2h
+          labels:
+            severity: info
+            service: backend
+          annotations:
+            summary: "No test runs created in the last 2 hours"
+            description: "This might indicate low user activity or an issue with test creation."
+
+        - alert: QAWaveHighTestFailureRate
+          expr: |
+            (
+              sum(rate(qawave_test_runs_failed_total[1h]))
+              /
+              sum(rate(qawave_test_runs_total[1h]))
+            ) > 0.3
+          for: 30m
+          labels:
+            severity: warning
+            service: backend
+          annotations:
+            summary: "High test failure rate"
+            description: "Test failure rate is {{ $value | humanizePercentage }} in the last hour"

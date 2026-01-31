@@ -1,0 +1,40 @@
+# Kustomization for Grafana Dashboards
+# ConfigMaps with dashboard JSON for auto-provisioning
+
+apiVersion: kustomize.config.k8s.io/v1beta1
+kind: Kustomization
+
+namespace: monitoring
+
+labels:
+  - pairs:
+      app.kubernetes.io/managed-by: kustomize
+      app.kubernetes.io/part-of: qawave-monitoring
+    includeSelectors: false
+
+# Note: Large JSON dashboards are generated separately
+# This kustomization references the ConfigMap generator
+configMapGenerator:
+  - name: qawave-overview-dashboard
+    files:
+      - qawave-overview.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+  - name: qawave-backend-dashboard
+    files:
+      - qawave-backend.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+  - name: qawave-infrastructure-dashboard
+    files:
+      - qawave-infrastructure.json
+    options:
+      labels:
+        grafana_dashboard: "1"
+
+generatorOptions:
+  disableNameSuffixHash: true
