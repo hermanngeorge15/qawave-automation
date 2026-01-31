@@ -86,3 +86,17 @@ value class RequirementId(val value: UUID) {
 
     override fun toString(): String = value.toString()
 }
+
+/**
+ * Value class for Share Token identifier.
+ */
+@JvmInline
+value class ShareTokenId(val value: UUID) {
+    companion object {
+        fun generate(): ShareTokenId = ShareTokenId(UUID.randomUUID())
+
+        fun from(string: String): ShareTokenId = ShareTokenId(UUID.fromString(string))
+    }
+
+    override fun toString(): String = value.toString()
+}
