@@ -15,6 +15,7 @@ import { Route as AppUnauthorizedRouteImport } from './routes/_app/unauthorized'
 import { Route as AppSettingsRouteImport } from './routes/_app/settings'
 import { Route as AppScenariosRouteImport } from './routes/_app/scenarios'
 import { Route as AppPackagesRouteImport } from './routes/_app/packages'
+import { Route as AppDashboardRouteImport } from './routes/_app/dashboard'
 import { Route as AppRunsRunIdRouteImport } from './routes/_app/runs.$runId'
 import { Route as AppPackagesNewRouteImport } from './routes/_app/packages.new'
 import { Route as AppPackagesPackageIdRouteImport } from './routes/_app/packages.$packageId'
@@ -48,6 +49,11 @@ const AppPackagesRoute = AppPackagesRouteImport.update({
   path: '/packages',
   getParentRoute: () => AppRoute,
 } as any)
+const AppDashboardRoute = AppDashboardRouteImport.update({
+  id: '/dashboard',
+  path: '/dashboard',
+  getParentRoute: () => AppRoute,
+} as any)
 const AppRunsRunIdRoute = AppRunsRunIdRouteImport.update({
   id: '/runs/$runId',
   path: '/runs/$runId',
@@ -66,6 +72,7 @@ const AppPackagesPackageIdRoute = AppPackagesPackageIdRouteImport.update({
 
 export interface FileRoutesByFullPath {
   '/': typeof AppIndexRoute
+  '/dashboard': typeof AppDashboardRoute
   '/packages': typeof AppPackagesRouteWithChildren
   '/scenarios': typeof AppScenariosRoute
   '/settings': typeof AppSettingsRoute
@@ -75,6 +82,7 @@ export interface FileRoutesByFullPath {
   '/runs/$runId': typeof AppRunsRunIdRoute
 }
 export interface FileRoutesByTo {
+  '/dashboard': typeof AppDashboardRoute
   '/packages': typeof AppPackagesRouteWithChildren
   '/scenarios': typeof AppScenariosRoute
   '/settings': typeof AppSettingsRoute
@@ -87,6 +95,7 @@ export interface FileRoutesByTo {
 export interface FileRoutesById {
   __root__: typeof rootRouteImport
   '/_app': typeof AppRouteWithChildren
+  '/_app/dashboard': typeof AppDashboardRoute
   '/_app/packages': typeof AppPackagesRouteWithChildren
   '/_app/scenarios': typeof AppScenariosRoute
   '/_app/settings': typeof AppSettingsRoute
@@ -100,6 +109,7 @@ export interface FileRouteTypes {
   fileRoutesByFullPath: FileRoutesByFullPath
   fullPaths:
     | '/'
+    | '/dashboard'
     | '/packages'
     | '/scenarios'
     | '/settings'
@@ -109,6 +119,7 @@ export interface FileRouteTypes {
     | '/runs/$runId'
   fileRoutesByTo: FileRoutesByTo
   to:
+    | '/dashboard'
     | '/packages'
     | '/scenarios'
     | '/settings'
@@ -120,6 +131,7 @@ export interface FileRouteTypes {
   id:
     | '__root__'
     | '/_app'
+    | '/_app/dashboard'
     | '/_app/packages'
     | '/_app/scenarios'
     | '/_app/settings'
@@ -178,6 +190,13 @@ declare module '@tanstack/react-router' {
       preLoaderRoute: typeof AppPackagesRouteImport
       parentRoute: typeof AppRoute
     }
+    '/_app/dashboard': {
+      id: '/_app/dashboard'
+      path: '/dashboard'
+      fullPath: '/dashboard'
+      preLoaderRoute: typeof AppDashboardRouteImport
+      parentRoute: typeof AppRoute
+    }
     '/_app/runs/$runId': {
       id: '/_app/runs/$runId'
       path: '/runs/$runId'
@@ -217,6 +236,7 @@ const AppPackagesRouteWithChildren = AppPackagesRoute._addFileChildren(
 )
 
 interface AppRouteChildren {
+  AppDashboardRoute: typeof AppDashboardRoute
   AppPackagesRoute: typeof AppPackagesRouteWithChildren
   AppScenariosRoute: typeof AppScenariosRoute
   AppSettingsRoute: typeof AppSettingsRoute
@@ -226,6 +246,7 @@ interface AppRouteChildren {
 }
 
 const AppRouteChildren: AppRouteChildren = {
+  AppDashboardRoute: AppDashboardRoute,
   AppPackagesRoute: AppPackagesRouteWithChildren,
   AppScenariosRoute: AppScenariosRoute,
   AppSettingsRoute: AppSettingsRoute,

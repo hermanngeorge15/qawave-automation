@@ -5,5 +5,5 @@ export const Route = createFileRoute('/_app/')({
 })
 
 function IndexRoute() {
-  return <Navigate to="/packages" />
+  return <Navigate to="/dashboard" />
 }
