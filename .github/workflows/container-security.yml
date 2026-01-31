@@ -1,0 +1,210 @@
+# ==============================================================================
+# Container Security Scanning Workflow
+# Scans Docker images for vulnerabilities using Trivy
+# ==============================================================================
+
+name: Container Security
+
+on:
+  push:
+    branches: [main, develop]
+    paths:
+      - 'backend/Dockerfile'
+      - 'frontend/Dockerfile'
+      - 'backend/**'
+      - 'frontend/**'
+  pull_request:
+    branches: [main]
+    paths:
+      - 'backend/Dockerfile'
+      - 'frontend/Dockerfile'
+      - 'backend/**'
+      - 'frontend/**'
+  schedule:
+    # Run weekly on Monday at 3am UTC
+    - cron: '0 3 * * 1'
+
+permissions:
+  contents: read
+  security-events: write
+
+jobs:
+  # --------------------------------------------------------------------------
+  # Scan Backend Image
+  # --------------------------------------------------------------------------
+  scan-backend:
+    name: Scan Backend Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          load: true
+          tags: qawave/backend:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'qawave/backend:scan'
+          format: 'sarif'
+          output: 'trivy-backend-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-backend-results.sarif'
+          category: 'backend-container'
+
+      - name: Run Trivy (fail on critical)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'qawave/backend:scan'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+          ignore-unfixed: true
+
+  # --------------------------------------------------------------------------
+  # Scan Frontend Image
+  # --------------------------------------------------------------------------
+  scan-frontend:
+    name: Scan Frontend Image
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: false
+          load: true
+          tags: qawave/frontend:scan
+          cache-from: type=gha
+          cache-to: type=gha,mode=max
+
+      - name: Run Trivy vulnerability scanner
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'qawave/frontend:scan'
+          format: 'sarif'
+          output: 'trivy-frontend-results.sarif'
+          severity: 'CRITICAL,HIGH'
+          ignore-unfixed: true
+
+      - name: Upload Trivy scan results
+        uses: github/codeql-action/upload-sarif@v3
+        if: always()
+        with:
+          sarif_file: 'trivy-frontend-results.sarif'
+          category: 'frontend-container'
+
+      - name: Run Trivy (fail on critical)
+        uses: aquasecurity/trivy-action@master
+        with:
+          image-ref: 'qawave/frontend:scan'
+          format: 'table'
+          exit-code: '1'
+          severity: 'CRITICAL'
+          ignore-unfixed: true
+
+  # --------------------------------------------------------------------------
+  # Dockerfile Linting
+  # --------------------------------------------------------------------------
+  lint-dockerfiles:
+    name: Lint Dockerfiles
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Run Hadolint on Backend
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: backend/Dockerfile
+          failure-threshold: warning
+
+      - name: Run Hadolint on Frontend
+        uses: hadolint/hadolint-action@v3.1.0
+        with:
+          dockerfile: frontend/Dockerfile
+          failure-threshold: warning
+
+  # --------------------------------------------------------------------------
+  # Image Size Check
+  # --------------------------------------------------------------------------
+  check-image-size:
+    name: Check Image Sizes
+    runs-on: ubuntu-latest
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+
+      - name: Set up Docker Buildx
+        uses: docker/setup-buildx-action@v3
+
+      - name: Build backend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./backend
+          push: false
+          load: true
+          tags: qawave/backend:size-check
+
+      - name: Build frontend image
+        uses: docker/build-push-action@v5
+        with:
+          context: ./frontend
+          push: false
+          load: true
+          tags: qawave/frontend:size-check
+
+      - name: Check image sizes
+        run: |
+          echo "## Image Sizes" >> $GITHUB_STEP_SUMMARY
+          echo "" >> $GITHUB_STEP_SUMMARY
+
+          BACKEND_SIZE=$(docker images qawave/backend:size-check --format "{{.Size}}")
+          FRONTEND_SIZE=$(docker images qawave/frontend:size-check --format "{{.Size}}")
+
+          echo "| Image | Size |" >> $GITHUB_STEP_SUMMARY
+          echo "|-------|------|" >> $GITHUB_STEP_SUMMARY
+          echo "| Backend | $BACKEND_SIZE |" >> $GITHUB_STEP_SUMMARY
+          echo "| Frontend | $FRONTEND_SIZE |" >> $GITHUB_STEP_SUMMARY
+
+          echo ""
+          echo "Backend image size: $BACKEND_SIZE"
+          echo "Frontend image size: $FRONTEND_SIZE"
+
+          # Fail if backend > 300MB
+          BACKEND_BYTES=$(docker images qawave/backend:size-check --format "{{.Size}}" | sed 's/MB//')
+          if (( $(echo "$BACKEND_BYTES > 300" | bc -l) )); then
+            echo "::warning::Backend image exceeds 300MB target"
+          fi
+
+          # Fail if frontend > 100MB
+          FRONTEND_BYTES=$(docker images qawave/frontend:size-check --format "{{.Size}}" | sed 's/MB//')
+          if (( $(echo "$FRONTEND_BYTES > 100" | bc -l) )); then
+            echo "::warning::Frontend image exceeds 100MB target"
+          fi

@@ -1,0 +1,57 @@
+# ==============================================================================
+# Docker Ignore for Backend
+# Excludes files not needed in the Docker build context
+# ==============================================================================
+
+# Build outputs
+build/
+out/
+target/
+
+# Gradle
+.gradle/
+!gradle/wrapper/
+
+# IDE
+.idea/
+*.iml
+*.ipr
+*.iws
+.vscode/
+*.swp
+*.swo
+
+# Git
+.git/
+.gitignore
+
+# Test files (not needed in production)
+src/test/
+
+# Local configuration
+*.local
+.env
+.env.*
+!.env.example
+
+# Documentation
+*.md
+docs/
+LICENSE
+
+# CI/CD
+.github/
+Jenkinsfile
+
+# OS files
+.DS_Store
+Thumbs.db
+
+# Logs
+*.log
+logs/
+
+# Temporary files
+tmp/
+temp/
+*.tmp
