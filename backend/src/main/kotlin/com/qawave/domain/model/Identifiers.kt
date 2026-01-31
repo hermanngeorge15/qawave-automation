@@ -100,3 +100,31 @@ value class ShareTokenId(val value: UUID) {
 
     override fun toString(): String = value.toString()
 }
+
+/**
+ * Value class for Webhook Configuration identifier.
+ */
+@JvmInline
+value class WebhookId(val value: UUID) {
+    companion object {
+        fun generate(): WebhookId = WebhookId(UUID.randomUUID())
+
+        fun from(string: String): WebhookId = WebhookId(UUID.fromString(string))
+    }
+
+    override fun toString(): String = value.toString()
+}
+
+/**
+ * Value class for Webhook Delivery identifier.
+ */
+@JvmInline
+value class WebhookDeliveryId(val value: UUID) {
+    companion object {
+        fun generate(): WebhookDeliveryId = WebhookDeliveryId(UUID.randomUUID())
+
+        fun from(string: String): WebhookDeliveryId = WebhookDeliveryId(UUID.fromString(string))
+    }
+
+    override fun toString(): String = value.toString()
+}

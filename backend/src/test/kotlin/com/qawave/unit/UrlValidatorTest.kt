@@ -1,8 +1,8 @@
 package com.qawave.unit
 
 import com.qawave.infrastructure.security.UrlValidator
-import org.junit.jupiter.api.Test
 import org.junit.jupiter.api.Assertions.*
+import org.junit.jupiter.api.Test
 import org.junit.jupiter.params.ParameterizedTest
 import org.junit.jupiter.params.provider.ValueSource
 
@@ -45,13 +45,15 @@ class UrlValidatorTest {
     // ==================== Blocked Protocols ====================
 
     @ParameterizedTest
-    @ValueSource(strings = [
-        "file:///etc/passwd",
-        "gopher://localhost:5432/",
-        "ftp://internal.server/data",
-        "dict://localhost:2628/show",
-        "ldap://localhost/",
-    ])
+    @ValueSource(
+        strings = [
+            "file:///etc/passwd",
+            "gopher://localhost:5432/",
+            "ftp://internal.server/data",
+            "dict://localhost:2628/show",
+            "ldap://localhost/",
+        ],
+    )
     fun `should block non-HTTP protocols`(url: String) {
         val result = validator.validate(url)
         assertFalse(result.isValid)
@@ -62,14 +64,16 @@ class UrlValidatorTest {
     // ==================== Blocked Hostnames ====================
 
     @ParameterizedTest
-    @ValueSource(strings = [
-        "http://localhost/api",
-        "http://127.0.0.1/api",
-        "http://0.0.0.0/api",
-        "http://[::1]/api",
-        "http://169.254.169.254/latest/meta-data/",
-        "http://metadata.google.internal/",
-    ])
+    @ValueSource(
+        strings = [
+            "http://localhost/api",
+            "http://127.0.0.1/api",
+            "http://0.0.0.0/api",
+            "http://[::1]/api",
+            "http://169.254.169.254/latest/meta-data/",
+            "http://metadata.google.internal/",
+        ],
+    )
     fun `should block localhost and metadata endpoints`(url: String) {
         val result = validator.validate(url)
         assertFalse(result.isValid)
@@ -79,14 +83,16 @@ class UrlValidatorTest {
     // ==================== Blocked Private IPs ====================
 
     @ParameterizedTest
-    @ValueSource(strings = [
-        "http://10.0.0.1/api",
-        "http://10.255.255.255/api",
-        "http://172.16.0.1/api",
-        "http://172.31.255.255/api",
-        "http://192.168.0.1/api",
-        "http://192.168.255.255/api",
-    ])
+    @ValueSource(
+        strings = [
+            "http://10.0.0.1/api",
+            "http://10.255.255.255/api",
+            "http://172.16.0.1/api",
+            "http://172.31.255.255/api",
+            "http://192.168.0.1/api",
+            "http://192.168.255.255/api",
+        ],
+    )
     fun `should block private IP addresses`(url: String) {
         val result = validator.validate(url)
         assertFalse(result.isValid)
@@ -97,12 +103,14 @@ class UrlValidatorTest {
     // ==================== Blocked Internal Suffixes ====================
 
     @ParameterizedTest
-    @ValueSource(strings = [
-        "http://backend.svc.cluster.local/api",
-        "http://database.internal/api",
-        "http://service.local/api",
-        "http://app.localhost/api",
-    ])
+    @ValueSource(
+        strings = [
+            "http://backend.svc.cluster.local/api",
+            "http://database.internal/api",
+            "http://service.local/api",
+            "http://app.localhost/api",
+        ],
+    )
     fun `should block internal hostname suffixes`(url: String) {
         val result = validator.validate(url)
         assertFalse(result.isValid)
@@ -113,13 +121,15 @@ class UrlValidatorTest {
     // ==================== Blocked Ports ====================
 
     @ParameterizedTest
-    @ValueSource(strings = [
-        "http://api.example.com:22/",      // SSH
-        "http://api.example.com:3306/",    // MySQL
-        "http://api.example.com:5432/",    // PostgreSQL
-        "http://api.example.com:6379/",    // Redis
-        "http://api.example.com:27017/",   // MongoDB
-    ])
+    @ValueSource(
+        strings = [
+            "http://api.example.com:22/", // SSH
+            "http://api.example.com:3306/", // MySQL
+            "http://api.example.com:5432/", // PostgreSQL
+            "http://api.example.com:6379/", // Redis
+            "http://api.example.com:27017/", // MongoDB
+        ],
+    )
     fun `should block dangerous ports`(url: String) {
         val result = validator.validate(url)
         assertFalse(result.isValid)
